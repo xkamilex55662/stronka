@@ -1,85 +1,162 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<title>Czat Globalny</title>
-<style>
-  body { font-family: Arial; background: #111; color: #eee; display: flex; flex-direction: column; align-items: center; }
-  #chat { width: 80%; max-width: 600px; height: 400px; overflow-y: auto; border: 1px solid #444; padding: 10px; margin: 10px; background: #222; }
-  #msgForm { display: flex; width: 80%; max-width: 600px; }
-  input, button { padding: 10px; border: none; outline: none; }
-  input { flex: 1; }
-  button { background: #28a745; color: white; cursor: pointer; }
-  #userCount { margin: 10px 0; font-weight: bold; }
-</style>
+  <meta charset="UTF-8">
+  <title>Czat Globalny</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    #chatBox {
+      width: 400px;
+      height: 300px;
+      border: 1px solid #444;
+      margin: 20px auto;
+      background: #222;
+      padding: 10px;
+      overflow-y: auto;
+      text-align: left;
+    }
+    #msgInput {
+      width: 320px;
+      padding: 5px;
+      margin-top: 5px;
+      background: #333;
+      color: white;
+      border: 1px solid #444;
+    }
+    #sendBtn {
+      padding: 6px 12px;
+      background: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #sendBtn:hover {
+      background: #218838;
+    }
+    /* Okienko nicku */
+    #nickModal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 9999;
+    }
+    #nickInput {
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    #confirmNick {
+      margin-top: 10px;
+      padding: 8px 15px;
+      cursor: pointer;
+      background: #28a745;
+      border: none;
+      color: white;
+    }
+    /* Migający efekt */
+    .blinking {
+      animation: blink 1s infinite;
+      color: red;
+      font-weight: bold;
+    }
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+  </style>
 </head>
 <body>
+  <h2>💬 Czat Globalny</h2>
+  <h4 id="userCount">Online: 0</h4>
+  <div id="chatBox"></div>
+  <input type="text" id="msgInput" placeholder="Napisz wiadomość...">
+  <button id="sendBtn">Wyślij</button>
+  <p class="blinking">⚠ Czatu nie da się usunąć ⚠</p>
 
-<h2>💬 Czat Globalny</h2>
-<div id="userCount">Online: 0</div>
-<div id="chat"></div>
-<form id="msgForm">
-  <input id="msgInput" placeholder="Napisz wiadomość..." autocomplete="off" />
-  <button>Wyślij</button>
-</form>
+  <!-- Okienko nicku -->
+  <div id="nickModal">
+    <h2 class="blinking">⚠ Wprowadź swój nick ⚠</h2>
+    <input type="text" id="nickInput" placeholder="Twój nick">
+    <button id="confirmNick">Dołącz</button>
+  </div>
 
-<!-- Firebase SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue, push, onChildAdded, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import { getDatabase, ref, push, onValue, set, onDisconnect } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBWtZUr7xoa31uoH18hksqSjCXMd2F18Ew",
-    authDomain: "strona-f0d19.firebaseapp.com",
-    databaseURL: "https://strona-f0d19-default-rtdb.firebaseio.com",
-    projectId: "strona-f0d19",
-    storageBucket: "strona-f0d19.firebasestorage.app",
-    messagingSenderId: "34203329400",
-    appId: "1:34203329400:web:c934bf311237b1a6701e8d",
-    measurementId: "G-HYCP5F1J3E"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyBWtZUr7xoa31uoH18hksqSjCXMd2F18Ew",
+      authDomain: "strona-f0d19.firebaseapp.com",
+      databaseURL: "https://strona-f0d19-default-rtdb.firebaseio.com",
+      projectId: "strona-f0d19",
+      storageBucket: "strona-f0d19.firebasestorage.app",
+      messagingSenderId: "34203329400",
+      appId: "1:34203329400:web:c934bf311237b1a6701e8d",
+      measurementId: "G-HYCP5F1J3E"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-  // Nick użytkownika
-  const username = prompt("Podaj swój nick:") || "Anonim";
+    let username = "";
 
-  // Online
-  const onlineRef = ref(db, "online/" + username);
-  set(onlineRef, true);
-  onDisconnect(onlineRef).remove();
+    // Okienko nicku
+    const modal = document.getElementById("nickModal");
+    document.getElementById("confirmNick").addEventListener("click", () => {
+      const inputNick = document.getElementById("nickInput").value.trim();
+      if (inputNick.length > 0) {
+        username = inputNick;
+        modal.style.display = "none";
 
-  // Liczba online
-  const usersRef = ref(db, "online");
-  onValue(usersRef, (snapshot) => {
-    const count = snapshot.numChildren();
-    document.getElementById("userCount").textContent = "Online: " + count;
-  });
+        // Dodaj użytkownika do online
+        const onlineRef = ref(db, "online/" + username);
+        set(onlineRef, true);
+        onDisconnect(onlineRef).remove();
+      }
+    });
 
-  // Czat
-  const chatRef = ref(db, "chat");
-  onChildAdded(chatRef, (snapshot) => {
-    const data = snapshot.val();
-    const div = document.createElement("div");
-    div.textContent = `${data.user}: ${data.msg}`;
-    document.getElementById("chat").appendChild(div);
-    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
-  });
+    // Wyświetlanie wiadomości
+    const chatBox = document.getElementById("chatBox");
+    const messagesRef = ref(db, "messages");
+    onValue(messagesRef, (snapshot) => {
+      chatBox.innerHTML = "";
+      snapshot.forEach((msgSnap) => {
+        const msg = msgSnap.val();
+        chatBox.innerHTML += `<p><b>${msg.user}:</b> ${msg.text}</p>`;
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
 
-  // Wysyłanie wiadomości
-  const msgForm = document.getElementById("msgForm");
-  const msgInput = document.getElementById("msgInput");
+    // Liczenie użytkowników online
+    const usersRef = ref(db, "online");
+    onValue(usersRef, (snapshot) => {
+      let count = 0;
+      snapshot.forEach(() => { count++; });
+      document.getElementById("userCount").textContent = "Online: " + count;
+    });
 
-  msgForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (msgInput.value.trim() !== "") {
-      push(chatRef, { user: username, msg: msgInput.value });
-      msgInput.value = "";
-    }
-  });
-</script>
-
+    // Wysyłanie wiadomości
+    document.getElementById("sendBtn").addEventListener("click", () => {
+      const text = document.getElementById("msgInput").value;
+      if (text.trim().length > 0 && username !== "") {
+        push(messagesRef, {
+          user: username,
+          text: text
+        });
+        document.getElementById("msgInput").value = "";
+      }
+    });
+  </script>
 </body>
 </html>
-
