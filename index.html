@@ -5,7 +5,9 @@
   <title>Czat Globalny</title>
   <style>
     body {
-      background: #111;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
       color: white;
       font-family: Arial, sans-serif;
       text-align: center;
@@ -15,10 +17,11 @@
       height: 300px;
       border: 1px solid #444;
       margin: 20px auto;
-      background: #222;
+      background: rgba(0,0,0,0.6);
       padding: 10px;
       overflow-y: auto;
       text-align: left;
+      border-radius: 8px;
     }
     #msgInput {
       width: 320px;
@@ -27,6 +30,7 @@
       background: #333;
       color: white;
       border: 1px solid #444;
+      border-radius: 4px;
     }
     #sendBtn {
       padding: 6px 12px;
@@ -34,6 +38,7 @@
       color: white;
       border: none;
       cursor: pointer;
+      border-radius: 4px;
     }
     #sendBtn:hover {
       background: #218838;
@@ -42,7 +47,7 @@
     #nickModal {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.85);
+      background: rgba(0,0,0,0.9);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -53,6 +58,8 @@
       padding: 10px;
       font-size: 16px;
       margin-top: 10px;
+      border-radius: 4px;
+      border: none;
     }
     #confirmNick {
       margin-top: 10px;
@@ -61,6 +68,7 @@
       background: #28a745;
       border: none;
       color: white;
+      border-radius: 4px;
     }
     /* Migający efekt */
     .blinking {
@@ -72,6 +80,21 @@
       0% { opacity: 1; }
       50% { opacity: 0; }
       100% { opacity: 1; }
+    }
+    /* Wiadomość z timestampem */
+    .message {
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+    }
+    .msg-text {
+      flex: 1;
+    }
+    .msg-time {
+      color: #aaa;
+      font-size: 12px;
+      margin-left: 10px;
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -126,6 +149,16 @@
       }
     });
 
+    // Formatowanie daty i godziny (z rokiem)
+    function formatDate(timestamp) {
+      const d = new Date(timestamp);
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+      const time = d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+      return `${day}.${month}.${year} ${time}`;
+    }
+
     // Wyświetlanie wiadomości
     const chatBox = document.getElementById("chatBox");
     const messagesRef = ref(db, "messages");
@@ -133,7 +166,12 @@
       chatBox.innerHTML = "";
       snapshot.forEach((msgSnap) => {
         const msg = msgSnap.val();
-        chatBox.innerHTML += `<p><b>${msg.user}:</b> ${msg.text}</p>`;
+        const time = msg.timestamp ? formatDate(msg.timestamp) : "";
+        chatBox.innerHTML += `
+          <div class="message">
+            <div class="msg-text"><b>${msg.user}:</b> ${msg.text}</div>
+            <div class="msg-time">${time}</div>
+          </div>`;
       });
       chatBox.scrollTop = chatBox.scrollHeight;
     });
@@ -152,7 +190,8 @@
       if (text.trim().length > 0 && username !== "") {
         push(messagesRef, {
           user: username,
-          text: text
+          text: text,
+          timestamp: Date.now()
         });
         document.getElementById("msgInput").value = "";
       }
