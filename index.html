@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Czat Firebase</title>
+<style>
+  body { font-family: Arial; background: #111; color: #eee; display: flex; flex-direction: column; align-items: center; }
+  #chat { width: 80%; max-width: 600px; height: 400px; overflow-y: auto; border: 1px solid #444; padding: 10px; margin: 10px; background: #222; }
+  #msgForm { display: flex; width: 80%; max-width: 600px; }
+  input, button { padding: 10px; border: none; outline: none; }
+  input { flex: 1; }
+  button { background: #28a745; color: white; cursor: pointer; }
+  #userCount { margin: 10px 0; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h2>💬 Czat Firebase</h2>
+<div id="userCount">Online: 0</div>
+<div id="chat"></div>
+<form id="msgForm">
+  <input id="msgInput" placeholder="Napisz wiadomość..." autocomplete="off" />
+  <button>Wyślij</button>
+</form>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, push, onChildAdded, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBWtZUr7xoa31uoH18hksqSjCXMd2F18Ew",
+    authDomain: "strona-f0d19.firebaseapp.com",
+    databaseURL: "https://strona-f0d19-default-rtdb.firebaseio.com",
+    projectId: "strona-f0d19",
+    storageBucket: "strona-f0d19.firebasestorage.app",
+    messagingSenderId: "34203329400",
+    appId: "1:34203329400:web:c934bf311237b1a6701e8d",
+    measurementId: "G-HYCP5F1J3E"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // Nick użytkownika
+  const username = prompt("Podaj swój nick:") || "Anonim";
+
+  // Online
+  const onlineRef = ref(db, "online/" + username);
+  set(onlineRef, true);
+  onDisconnect(onlineRef).remove();
+
+  // Liczba online
+  const usersRef = ref(db, "online");
+  onValue(usersRef, (snapshot) => {
+    const count = snapshot.numChildren();
+    document.getElementById("userCount").textContent = "Online: " + count;
+  });
+
+  // Czat
+  const chatRef = ref(db, "chat");
+  onChildAdded(chatRef, (snapshot) => {
+    const data = snapshot.val();
+    const div = document.createElement("div");
+    div.textContent = `${data.user}: ${data.msg}`;
+    document.getElementById("chat").appendChild(div);
+    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+  });
+
+  // Wysyłanie wiadomości
+  const msgForm = document.getElementById("msgForm");
+  const msgInput = document.getElementById("msgInput");
+
+  msgForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (msgInput.value.trim() !== "") {
+      push(chatRef, { user: username, msg: msgInput.value });
+      msgInput.value = "";
+    }
+  });
+</script>
+
+</body>
+</html>
