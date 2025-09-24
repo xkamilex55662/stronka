@@ -78,7 +78,7 @@
             display: none;
         }
         
-        .profile-modal {
+        .profile-modal, .add-members-modal {
             position: fixed;
             top: 50%;
             left: 50%;
@@ -102,7 +102,7 @@
             to { opacity: 1; transform: translate(-50%, -50%); }
         }
         
-        .profile-modal h3 {
+        .profile-modal h3, .add-members-modal h3 {
             margin: 0;
             font-weight: 700;
         }
@@ -665,7 +665,7 @@
             background: var(--glass);
         }
 
-        .group-creator .checkbox-list {
+        .group-creator .checkbox-list, .add-members-modal .checkbox-list {
             max-height: 150px;
             overflow-y: auto;
             display: flex;
@@ -673,14 +673,14 @@
             gap: 8px;
         }
 
-        .group-creator label {
+        .group-creator label, .add-members-modal label {
             display: flex;
             align-items: center;
             gap: 8px;
             font-size: 14px;
         }
 
-        .group-creator input[type="checkbox"] {
+        .group-creator input[type="checkbox"], .add-members-modal input[type="checkbox"] {
             width: auto;
             padding: 0;
             border-radius: 4px;
@@ -741,7 +741,7 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        .context-menu-item.delete {
+        .context-menu-item.delete, .context-menu-item.kick {
             color: var(--red);
         }
 
@@ -754,6 +754,23 @@
         .members-panel h4 {
             margin: 0;
             color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .add-member-btn {
+            background: none;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+        }
+        .add-member-btn:hover {
+            background: var(--accent);
+            color: white;
+            transform: none;
         }
 
         .member-list {
@@ -765,6 +782,7 @@
         .member-item {
             background: none;
             padding: 8px;
+            cursor: pointer;
         }
 
         .member-item:hover {
@@ -911,7 +929,10 @@
         </div>
         
         <div class="members-panel" id="membersPanel">
-            <h4 id="membersPanelTitle">Członkowie</h4>
+            <h4 id="membersPanelTitle">
+                Członkowie
+                <button id="addMembersBtn" class="add-member-btn" style="display: none;">Dodaj</button>
+            </h4>
             <div id="membersList" class="member-list"></div>
         </div>
         
@@ -961,6 +982,17 @@
 
     <div id="contextMenu" class="context-menu">
         <div class="context-menu-item delete" id="deleteMsgItem">Usuń dla wszystkich</div>
+    </div>
+
+    <div id="memberContextMenu" class="context-menu">
+        <div class="context-menu-item kick" id="kickMemberItem">Wyrzuć z grupy</div>
+    </div>
+
+    <div id="addMembersModal" class="add-members-modal">
+        <h3>Dodaj członków</h3>
+        <div class="checkbox-list" id="addMembersList"></div>
+        <button id="confirmAddMembersBtn">Dodaj</button>
+        <button id="cancelAddMembersBtn">Anuluj</button>
     </div>
 
     <script type="module">
@@ -1029,6 +1061,15 @@
         const profileStatus = document.getElementById('profileStatus');
         const profileJoinDate = document.getElementById('profileJoinDate');
 
+        // Nowe elementy DOM
+        const addMembersBtn = document.getElementById('addMembersBtn');
+        const addMembersModal = document.getElementById('addMembersModal');
+        const addMembersList = document.getElementById('addMembersList');
+        const confirmAddMembersBtn = document.getElementById('confirmAddMembersBtn');
+        const cancelAddMembersBtn = document.getElementById('cancelAddMembersBtn');
+        const memberContextMenu = document.getElementById('memberContextMenu');
+        const kickMemberItem = document.getElementById('kickMemberItem');
+
         // ===== VOICE CHAT DOM ELEMENTS =====
         const voiceCallBtn = document.getElementById('voiceCallBtn');
         const hangUpBtn = document.getElementById('hangUpBtn');
@@ -1043,6 +1084,7 @@
         let currentChatType = null;
         let myStatus = 'Online';
         let activeMessageId = null;
+        let activeMemberProfile = null;
         let unsubscribeMessageListener = null;
         let unsubscribeGroupMembersListener = null;
 
@@ -1346,40 +1388,42 @@
         function updateMemberStatuses(statuses) {
             const memberItems = membersList.querySelectorAll('.member-item');
             memberItems.forEach(item => {
-                const nick = item.querySelector('.name').textContent;
-                const statusInfo = statuses[nick] || 'Offline';
-                const dot = item.querySelector('.avatar-status-dot');
-                const statusTextEl = item.querySelector('.member-status-text');
+                const nameEl = item.querySelector('.name');
+                if (nameEl) {
+                    const memberNick = nameEl.textContent;
+                    const dot = item.querySelector('.avatar-status-dot');
+                    const statusTextEl = item.querySelector('.member-status-text');
 
-                let color = 'gray';
-                let statusText = statusInfo;
-                let badge = '';
+                    let color = 'gray';
+                    let statusText = statuses[memberNick] || 'Offline';
+                    let badge = '';
 
-                switch (statusInfo) {
-                    case 'Online':
-                        color = 'green';
-                        break;
-                    case 'Zaraz wracam':
-                        color = 'yellow';
-                        break;
-                    case 'Nie przeszkadzać':
-                        color = 'red';
-                        break;
-                    case 'W grze':
-                         color = '#5c6bc0';
-                         badge = `👾 W grze <span class="status-badge">Gra</span>`;
-                         break;
-                    case 'Rozmawia':
-                         color = '#2196F3';
-                         badge = `🎤 Rozmawia <span class="status-badge">Rozmowa</span>`;
-                         break;
-                    default:
-                        color = 'gray';
-                }
+                    switch (statusText) {
+                        case 'Online':
+                            color = 'green';
+                            break;
+                        case 'Zaraz wracam':
+                            color = 'yellow';
+                            break;
+                        case 'Nie przeszkadzać':
+                            color = 'red';
+                            break;
+                        case 'W grze':
+                             color = '#5c6bc0';
+                             badge = `👾 W grze <span class="status-badge">Gra</span>`;
+                             break;
+                        case 'Rozmawia':
+                             color = '#2196F3';
+                             badge = `🎤 Rozmawia <span class="status-badge">Rozmowa</span>`;
+                             break;
+                        default:
+                            color = 'gray';
+                    }
 
-                if (dot) dot.style.backgroundColor = color;
-                if (statusTextEl) {
-                    statusTextEl.innerHTML = badge || statusText;
+                    if (dot) dot.style.backgroundColor = color;
+                    if (statusTextEl) {
+                        statusTextEl.innerHTML = badge || statusText;
+                    }
                 }
             });
         }
@@ -1515,6 +1559,9 @@
             if (profileModal.style.display === 'flex' && !profileModal.contains(e.target) && !e.target.closest('.friend-item') && !e.target.closest('.member-item') && !e.target.closest('.profile')) {
                 profileModal.style.display = 'none';
             }
+            if (addMembersModal.style.display === 'flex' && !addMembersModal.contains(e.target) && e.target.id !== 'addMembersBtn') {
+                addMembersModal.style.display = 'none';
+            }
         });
 
         // ===== CHAT =====
@@ -1526,9 +1573,11 @@
             currentChatId = id;
             currentChatType = type;
             deleteGroupBtn.style.display = 'none';
+            addMembersBtn.style.display = 'none';
             profileModal.style.display = 'none';
             membersPanel.style.display = 'none';
             contextMenu.style.display = 'none';
+            memberContextMenu.style.display = 'none';
             voiceCallBtn.style.display = 'none';
             hangUpBtn.style.display = 'none';
             voiceControls.style.display = 'none';
@@ -1551,6 +1600,7 @@
                     voiceCallBtn.style.display = 'block';
                     if (groupData.owner === currentUser) {
                         deleteGroupBtn.style.display = 'block';
+                        addMembersBtn.style.display = 'block';
                     }
                     membersPanel.style.display = 'flex';
                     loadMembersPanel(groupData.members, groupData.owner);
@@ -1585,7 +1635,7 @@
             });
         }
 
-        function loadMembersPanel(members, owner) {
+        async function loadMembersPanel(members, owner) {
             membersList.innerHTML = '';
             for (const member of members) {
                 const item = document.createElement('div');
@@ -1609,7 +1659,16 @@
                     </div>
                 `;
                 item.innerHTML = avatar + nameAndStatus;
-                item.onclick = () => showProfile(member);
+                item.onclick = (e) => {
+                    if (e.button === 0) showProfile(member);
+                };
+                if (currentUser === owner && member !== currentUser) {
+                    item.addEventListener('contextmenu', e => {
+                        e.preventDefault();
+                        activeMemberProfile = member;
+                        showMemberContextMenu(e);
+                    });
+                }
                 membersList.appendChild(item);
             }
             
@@ -1623,6 +1682,108 @@
                 updateMemberStatuses(statusesToUpdate);
             });
         }
+
+        function showMemberContextMenu(e) {
+            memberContextMenu.style.display = 'block';
+            memberContextMenu.style.top = `${e.clientY}px`;
+            memberContextMenu.style.left = `${e.clientX}px`;
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!memberContextMenu.contains(e.target)) {
+                memberContextMenu.style.display = 'none';
+            }
+        });
+
+        kickMemberItem.onclick = async () => {
+            if (activeMemberProfile && currentChatId) {
+                if (confirm(`Czy na pewno chcesz wyrzucić ${activeMemberProfile} z grupy?`)) {
+                    const groupRef = ref(db, `groups/${currentChatId}`);
+                    const userGroupRef = ref(db, `userGroups/${activeMemberProfile}/${currentChatId}`);
+                    
+                    const groupSnap = await get(groupRef);
+                    if (groupSnap.exists()) {
+                        const groupData = groupSnap.val();
+                        if (groupData.owner === currentUser) {
+                            const newMembers = groupData.members.filter(m => m !== activeMemberProfile);
+                            await update(groupRef, { members: newMembers });
+                            await remove(userGroupRef);
+                            await push(ref(db, `groupMessages/${currentChatId}`), {
+                                text: `${activeMemberProfile} został wyrzucony przez ${currentUser}.`,
+                                timestamp: Date.now(),
+                                isSystem: true
+                            });
+                            alert(`${activeMemberProfile} został usunięty z grupy.`);
+                            openChat(currentChatId, 'group');
+                        } else {
+                            alert("Nie masz uprawnień, aby to zrobić.");
+                        }
+                    }
+                }
+            }
+            memberContextMenu.style.display = 'none';
+        };
+
+        addMembersBtn.onclick = async () => {
+            const friendsSnap = await get(ref(db, `friends/${currentUser}`));
+            const groupSnap = await get(ref(db, `groups/${currentChatId}`));
+            const friends = friendsSnap.exists() ? Object.keys(friendsSnap.val()) : [];
+            const groupMembers = groupSnap.exists() ? groupSnap.val().members : [];
+
+            addMembersList.innerHTML = '';
+            const potentialMembers = friends.filter(friend => !groupMembers.includes(friend));
+
+            if (potentialMembers.length === 0) {
+                addMembersList.innerHTML = '<div style="color: var(--muted); text-align:center;">Wszyscy Twoi znajomi są już w tej grupie.</div>';
+                confirmAddMembersBtn.style.display = 'none';
+            } else {
+                potentialMembers.forEach(friend => {
+                    const item = document.createElement('label');
+                    item.innerHTML = `<input type="checkbox" value="${friend}" /> ${friend}`;
+                    addMembersList.appendChild(item);
+                });
+                confirmAddMembersBtn.style.display = 'block';
+            }
+
+            addMembersModal.style.display = 'flex';
+        };
+
+        cancelAddMembersBtn.onclick = () => {
+            addMembersModal.style.display = 'none';
+        };
+
+        confirmAddMembersBtn.onclick = async () => {
+            const newMembers = [];
+            document.querySelectorAll('#addMembersList input:checked').forEach(checkbox => {
+                newMembers.push(checkbox.value);
+            });
+
+            if (newMembers.length > 0) {
+                const groupRef = ref(db, `groups/${currentChatId}`);
+                const groupSnap = await get(groupRef);
+                const groupData = groupSnap.val();
+                
+                const currentMembers = groupData.members;
+                const updatedMembers = [...currentMembers, ...newMembers];
+                
+                await update(groupRef, { members: updatedMembers });
+                
+                for (const member of newMembers) {
+                    await set(ref(db, `userGroups/${member}/${currentChatId}`), true);
+                    await push(ref(db, `groupMessages/${currentChatId}`), {
+                        text: `${member} został dodany do grupy przez ${currentUser}.`,
+                        timestamp: Date.now(),
+                        isSystem: true
+                    });
+                }
+                
+                alert('Członkowie zostali dodani.');
+                addMembersModal.style.display = 'none';
+                openChat(currentChatId, 'group');
+            } else {
+                alert('Wybierz co najmniej jednego członka.');
+            }
+        };
 
         chatTitle.addEventListener('dblclick', async () => {
             if (currentChatType === 'group' && currentChatId) {
@@ -1766,7 +1927,7 @@
             if (!text || !currentChatId) return;
 
             const isImage = /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(text);
-            const isGif = /\.(gif)$/i.test(text);
+            const isGif = /\.(gif)$/i.i.test(text);
 
             const message = {
                 from: currentUser,
@@ -1800,7 +1961,7 @@
 
         async function startVoiceCall() {
             if (currentChatType !== 'group' || localStream) return;
-
+        
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 await set(ref(db, `status/${currentUser}`), 'Rozmawia');
@@ -1823,7 +1984,7 @@
                         sum += input[i] * input[i];
                     }
                     const rms = Math.sqrt(sum / input.length);
-
+        
                     if (rms > 0.05 && !isSpeaking) {
                         isSpeaking = true;
                         await set(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`), true);
@@ -1834,10 +1995,10 @@
                 };
                 microphone.connect(scriptProcessor);
                 scriptProcessor.connect(audioContext.destination);
-
+        
                 const groupMembersSnap = await get(ref(db, `groups/${currentChatId}/members`));
                 const members = groupMembersSnap.val();
-
+        
                 for (const member of members) {
                     if (member !== currentUser) {
                         await createPeerConnection(member);
@@ -1845,7 +2006,18 @@
                 }
             } catch (error) {
                 console.error("Błąd dostępu do mikrofonu:", error);
-                alert("Brak dostępu do mikrofonu. Upewnij się, że zezwoliłeś na jego użycie.");
+                
+                // New, more specific error message
+                let errorMessage = "Wystąpił nieznany błąd podczas próby dostępu do mikrofonu.";
+                if (error.name === "NotAllowedError") {
+                    errorMessage = "Odmówiono dostępu do mikrofonu. Upewnij się, że zezwoliłeś na jego użycie.";
+                } else if (error.name === "NotFoundError") {
+                    errorMessage = "Nie znaleziono mikrofonu. Upewnij się, że jest podłączony i działa poprawnie.";
+                } else if (error.name === "NotReadableError") {
+                    errorMessage = "Mikrofon jest niedostępny, być może używa go inna aplikacja.";
+                }
+                
+                alert(errorMessage);
                 hangUp();
             }
         }
@@ -1854,7 +2026,11 @@
             const pc = new RTCPeerConnection(PEER_CONFIG);
             peerConnections[remoteUser] = pc;
 
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            if (localStream) {
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            } else {
+                console.warn("Local stream is not available, cannot add tracks.");
+            }
 
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
