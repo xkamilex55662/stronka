@@ -362,6 +362,7 @@ logoutBtn.onclick = ()=>{
 
 // ===== PRESENCE =====
 function initPresence(){
+    if (!currentUser) return; // Zabezpieczenie na wypadek braku zalogowanego użytkownika
     const onRef = ref(db,'online/'+currentUser);
     set(onRef,true);
     onDisconnect(onRef).remove();
@@ -618,51 +619,62 @@ function loadMessages(){
     if(!currentChatId) return;
     const messagesPath = currentChatType === 'dm' ? 'dms/' + [currentUser, currentChatId].sort().join('_') : 'groupMessages/' + currentChatId;
     const chatRef = ref(db, messagesPath);
-    onValue(chatRef,snap=>{
-        messagesEl.innerHTML='';
-        snap.forEach(s=>{
-            const msg=s.val();
-            const msgId = s.key;
-            const isMe = msg.from===currentUser;
-            const container=document.createElement('div');
-            container.className=`msg-container ${isMe?'me':''}`;
-            const av=document.createElement('div');av.className='avatar';av.innerHTML=`<div>${msg.from.slice(0,2).toUpperCase()}</div>`;
-            const div=document.createElement('div');
-            div.className='msg'+(isMe?' me':'');
-            div.setAttribute('data-id', msgId);
-            
-            let content;
-            if (msg.status === 'deleted') {
-                content = `<span class="deleted-msg" style="font-style: italic; color: var(--muted);">Cofnięto wysyłanie wiadomości</span>`;
+
+    const unsubscribe = onValue(chatRef, snap => {
+        messagesEl.innerHTML = '';
+        if (snap.exists()) {
+            snap.forEach(s => {
+                const msg = s.val();
+                const msgId = s.key;
+                const isMe = msg.from === currentUser;
+                const container = document.createElement('div');
+                container.className = `msg-container ${isMe ? 'me' : ''}`;
+                const av = document.createElement('div');
+                av.className = 'avatar';
+                av.innerHTML = `<div>${msg.from.slice(0, 2).toUpperCase()}</div>`;
+                const div = document.createElement('div');
+                div.className = 'msg' + (isMe ? ' me' : '');
+                div.setAttribute('data-id', msgId);
+                
+                let content;
+                if (msg.status === 'deleted') {
+                    content = `<span class="deleted-msg" style="font-style: italic; color: var(--muted);">Cofnięto wysyłanie wiadomości</span>`;
+                } else {
+                    content = `<div class="meta"><span>${msg.from}</span> <span style="margin-left:5px;font-weight: normal; color: var(--muted);">${new Date(msg.timestamp).toLocaleTimeString()}</span></div>`;
+                    if (msg.isImage) {
+                        content += `<img src="${msg.text}" alt="Image" onclick="window.open(this.src)" />`;
+                    } else if (msg.isGif) {
+                        content += `<img src="${msg.text}" alt="GIF" onclick="window.open(this.src)" />`;
+                    } else {
+                        content += msg.text || '';
+                    }
+                }
+                
+                div.innerHTML = content;
                 container.appendChild(av);
                 container.appendChild(div);
-                div.innerHTML = content;
                 messagesEl.appendChild(container);
-                return; // Przerwij dalsze renderowanie dla usuniętej wiadomości
-            }
-            
-            content = `<div class="meta"><span>${msg.from}</span> <span style="margin-left:5px;font-weight: normal; color: var(--muted);">${new Date(msg.timestamp).toLocaleTimeString()}</span></div>`;
-            
-            if (msg.isImage) {
-                content += `<img src="${msg.text}" alt="Image" onclick="window.open(this.src)" />`;
-            } else if (msg.isGif) {
-                content += `<img src="${msg.text}" alt="GIF" onclick="window.open(this.src)" />`;
-            } else {
-                content += msg.text || '';
-            }
-            
-            div.innerHTML = content;
-            container.appendChild(av);container.appendChild(div);
-            messagesEl.appendChild(container);
 
-            if(isMe){
-                div.addEventListener('contextmenu', e => {
-                    e.preventDefault();
-                    showContextMenu(e, msgId);
-                });
-            }
-        });
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+                if (isMe && msg.status !== 'deleted') {
+                    div.addEventListener('contextmenu', e => {
+                        e.preventDefault();
+                        showContextMenu(e, msgId);
+                    });
+                }
+            });
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        } else {
+            console.log("No messages exist at this path or no read permission.");
+            // Opcjonalnie: można tutaj wyświetlić komunikat "Brak wiadomości"
+        }
+    }, (error) => {
+        console.error("Firebase Read Error:", error);
+        messagesEl.innerHTML = '<div>Błąd ładowania wiadomości. Sprawdź uprawnienia.</div>';
+        unsubscribe(); // Ważne: usuń subskrypcję, aby uniknąć pętli
+        if (error.code === 'PERMISSION_DENIED') {
+            console.log("Permission denied for path:", messagesPath);
+            alert("Brak uprawnień do odczytu wiadomości w tej grupie. Sprawdź reguły Firebase.");
+        }
     });
 }
 
@@ -718,6 +730,13 @@ sendMsgBtn.onclick = async ()=>{
     await push(chatRef,msgObj);
     msgInput.value='';
 }
+
+// Obsługa wysyłania wiadomości po naciśnięciu klawisza Enter
+msgInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMsgBtn.click();
+    }
+});
 
 // INIT
 const storedUser = localStorage.getItem('currentUser');
