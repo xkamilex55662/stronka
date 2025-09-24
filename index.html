@@ -298,28 +298,62 @@
             color: #fff;
             text-align: center;
         }
-        #adminPanel p {
-            font-size: 14px;
-            opacity: 0.8;
-            margin-bottom: 20px;
+        #adminPanel .panel-sections {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        #adminPanel .panel-section {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        #adminPanel h3 {
+            margin-top: 0;
+            color: #28a745;
+        }
+        #adminPanel .action-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        #adminPanel select {
+            flex: 1;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #555;
+            background-color: #444;
+            color: white;
         }
         #adminPanel button {
-            width: 100%;
-            padding: 10px;
-            font-size: 16px;
+            padding: 8px 12px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            margin-top: 10px;
             color: white;
         }
-        #adminPanel .delete-all-btn {
+        #adminPanel .btn-danger {
             background: #dc3545;
         }
-        #adminPanel .delete-all-btn:hover {
+        #adminPanel .btn-danger:hover {
             background: #b02a37;
         }
+        #adminPanel .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        #adminPanel .btn-warning:hover {
+            background: #e0a800;
+        }
+        #adminPanel .btn-success {
+            background: #28a745;
+        }
+        #adminPanel .btn-success:hover {
+            background: #218838;
+        }
         #adminPanel .close-btn {
+            margin-top: 20px;
             background: #6c757d;
         }
         #adminPanel .close-btn:hover {
@@ -392,15 +426,45 @@
 
 <div id="adminPanel">
     <h2>Panel Administracyjny</h2>
-    <p>Uwaga! Poniższe operacje są nieodwracalne.</p>
-    <button id="deleteAllPublicBtn" class="delete-all-btn">Usuń wszystkie wiadomości publiczne</button>
-    <button id="deleteAllPrivateBtn" class="delete-all-btn">Usuń wszystkie wiadomości prywatne</button>
+    <div class="panel-sections">
+        <div class="panel-section">
+            <h3>Zarządzanie Użytkownikami</h3>
+            <div class="action-group">
+                <select id="userActionSelect">
+                    <option value="">Wybierz użytkownika...</option>
+                </select>
+                <button id="banUserBtn" class="btn-danger">Banuj</button>
+                <button id="muteUserBtn" class="btn-warning">Wycisz</button>
+                <button id="unmuteUserBtn" class="btn-success">Odcisz</button>
+                <button id="unbanUserBtn" class="btn-success">Odbanuj</button>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <h3>Zarządzanie Wiadomościami</h3>
+            <div class="action-group">
+                <button id="deleteAllPublicBtn" class="btn-danger">Usuń wszystkie wiadomości publiczne</button>
+                <button id="deleteAllPrivateBtn" class="btn-danger">Usuń wszystkie wiadomości prywatne</button>
+            </div>
+        </div>
+    </div>
     <button id="closeAdminPanel" class="close-btn">Zamknij</button>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-    import { getDatabase, ref, push, onValue, set, remove, onDisconnect, get, child } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+    import { getDatabase, ref, push, onValue, set, remove, onDisconnect, get, update } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+
+    // Blokada podglądu źródła kodu
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    document.addEventListener('keydown', event => {
+        if (event.ctrlKey && (event.key === 'u' || event.key === 's')) {
+            event.preventDefault();
+        }
+        if (event.key === 'F12') {
+            event.preventDefault();
+        }
+    });
 
     // Firebase config — zastąp swoimi danymi!
     const firebaseConfig = {
@@ -434,7 +498,6 @@
     const authSwitch = document.getElementById('authSwitch');
     const nickInput = document.getElementById('nickInput');
     const passInput = document.getElementById('passInput');
-
     const mainContent = document.querySelector('main');
     const usersListEl = document.getElementById('usersList');
     const chatBox = document.getElementById('chatBox');
@@ -452,38 +515,44 @@
     const deleteAllPublicBtn = document.getElementById('deleteAllPublicBtn');
     const deleteAllPrivateBtn = document.getElementById('deleteAllPrivateBtn');
     const closeAdminPanelBtn = document.getElementById('closeAdminPanel');
-
+    const userActionSelect = document.getElementById('userActionSelect');
+    const banUserBtn = document.getElementById('banUserBtn');
+    const muteUserBtn = document.getElementById('muteUserBtn');
+    const unbanUserBtn = document.getElementById('unbanUserBtn');
+    const unmuteUserBtn = document.getElementById('unmuteUserBtn');
+    
     let currentUser = null; 
     let selectedUser = null; 
     let isRegisterMode = false;
     let messageListeners = [];
+    let isMuted = false;
+    let isBanned = false;
 
-    // Format daty i godziny
     function formatDate(ts) {
         const d = new Date(ts);
         return d.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour:'2-digit', minute:'2-digit' });
     }
 
-    // Escape HTML dla bezpieczeństwa
     function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
-    // Pokaż wiadomości (publiczne i prywatne z wybranym userem)
     function renderMessages(messagesSnapshot) {
         chatBox.innerHTML = '';
         const messages = [];
 
         messagesSnapshot.forEach(msgSnap => {
-            messages.push({
-                key: msgSnap.key,
-                ...msgSnap.val()
-            });
+            const msg = msgSnap.val();
+            const messageData = { key: msgSnap.key, ...msg };
+            if (msg.to) {
+                const sortedPair = [msg.user, msg.to].sort();
+                messageData.conversationKey = `${sortedPair[0]}_${sortedPair[1]}`;
+            }
+            messages.push(messageData);
         });
 
-        // Sortuj po dacie
         messages.sort((a, b) => a.timestamp - b.timestamp);
 
         messages.forEach(msg => {
@@ -526,34 +595,14 @@
         messageListeners = [];
     }
 
-    // Zarządza subskrypcją wiadomości
     function listenForMessages() {
         removeAllListeners();
+        const messagesRef = selectedUser === 'public' ? ref(db, 'messages') : (selectedUser ? ref(db, `messages_private/${[currentUser.nick, selectedUser].sort().join('_')}`) : null);
 
-        if (selectedUser === 'public') {
-            const messagesRef = ref(db, 'messages');
+        if (messagesRef) {
             const unsubscribe = onValue(messagesRef, (snapshot) => {
                 if(!currentUser) return;
                 renderMessages(snapshot);
-            });
-            messageListeners.push(unsubscribe);
-
-        } else if (selectedUser) {
-            const sortedPair = [currentUser.nick, selectedUser].sort();
-            const privatePath = `messages_private/${sortedPair[0]}_${sortedPair[1]}`;
-            const privateRef = ref(db, privatePath);
-            
-            const unsubscribe = onValue(privateRef, (snapshot) => {
-                if(!currentUser) return;
-                const privateMessages = [];
-                snapshot.forEach(msgSnap => {
-                    privateMessages.push({
-                        key: msgSnap.key,
-                        conversationKey: `${sortedPair[0]}_${sortedPair[1]}`,
-                        ...msgSnap.val()
-                    });
-                });
-                renderMessages(privateMessages);
             });
             messageListeners.push(unsubscribe);
         } else {
@@ -561,7 +610,6 @@
         }
     }
 
-    // Przełączanie trybu czatu
     function switchChatMode(mode, targetUser = null) {
         selectedUser = targetUser;
         let selectedLi = document.querySelector('#usersList li.selected');
@@ -580,28 +628,51 @@
         listenForMessages();
     }
 
-    // Pobierz użytkowników online i wyświetl
+    // Nowa funkcja do aktualizacji listy użytkowników w panelu admina
+    async function updateAdminUserList() {
+        const usersRef = ref(db, 'users');
+        const usersSnapshot = await get(usersRef);
+        userActionSelect.innerHTML = `<option value="">Wybierz użytkownika...</option>`;
+        if (usersSnapshot.exists()) {
+            usersSnapshot.forEach(userSnap => {
+                const nick = userSnap.key;
+                if (nick !== currentUser?.nick) {
+                    const status = userSnap.val().status || {};
+                    const isBanned = status.isBanned || false;
+                    const isMuted = status.isMuted || false;
+                    
+                    const option = document.createElement('option');
+                    option.value = nick;
+                    option.textContent = nick;
+                    if (isBanned) option.textContent += ' (ZBANOWANY)';
+                    if (isMuted) option.textContent += ' (WYCISZONY)';
+                    userActionSelect.appendChild(option);
+                }
+            });
+        }
+    }
+
+    // Słuchaj na liście online tylko do wyświetlania w sidebarze
     const onlineRef = ref(db, 'online');
     onValue(onlineRef, (snapshot) => {
         usersListEl.innerHTML = '';
         snapshot.forEach(userSnap => {
             const nick = userSnap.key;
-            if(nick === currentUser?.nick) return; 
-
-            const li = document.createElement('li');
-            li.textContent = nick;
-            li.setAttribute('data-nick', nick);
-            if(selectedUser === nick) li.classList.add('selected');
-            li.title = `Kliknij, by wysłać wiadomość do ${nick}`;
-            li.addEventListener('click', () => {
-                switchChatMode('private', nick);
-            });
-            usersListEl.appendChild(li);
+            if (nick !== currentUser?.nick) {
+                const li = document.createElement('li');
+                li.textContent = nick;
+                li.setAttribute('data-nick', nick);
+                if(selectedUser === nick) li.classList.add('selected');
+                li.title = `Kliknij, by wysłać wiadomość do ${nick}`;
+                li.addEventListener('click', () => {
+                    switchChatMode('private', nick);
+                });
+                usersListEl.appendChild(li);
+            }
         });
     });
 
-    // Po zalogowaniu pokaż UI czatu
-    function afterLogin() {
+    async function afterLogin() {
         authPanel.style.display = 'none';
         mainContent.style.display = 'flex';
         logoutBtn.style.display = 'inline-block';
@@ -611,15 +682,30 @@
             adminPanelBtn.style.display = 'inline-block';
         }
 
+        const userStatusRef = ref(db, `users/${currentUser.nick}/status`);
+        const statusSnap = await get(userStatusRef);
+        if(statusSnap.exists()) {
+            const status = statusSnap.val();
+            isBanned = status.isBanned || false;
+            isMuted = status.isMuted || false;
+        }
+
+        if (isBanned) {
+            alert('Twoje konto zostało zbanowane.');
+            logoutBtn.click();
+            return;
+        }
+
+        msgInput.disabled = isMuted;
+        msgInput.placeholder = isMuted ? 'Jesteś wyciszony i nie możesz pisać.' : 'Napisz wiadomość...';
+
         const userOnlineRef = ref(db, 'online/' + currentUser.nick);
         set(userOnlineRef, true);
         onDisconnect(userOnlineRef).remove();
 
-        // Domyślnie pokaż czat publiczny
         switchChatMode('public');
     }
 
-    // Logowanie lub rejestracja
     authForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         authError.textContent = '';
@@ -649,6 +735,10 @@
                 return;
             }
             const data = snapshot.val();
+            if (data.status?.isBanned) {
+                authError.textContent = 'Twoje konto zostało zbanowane.';
+                return;
+            }
             const hashed = await hashPassword(pass);
             if(hashed !== data.passwordHash) {
                 authError.textContent = 'Niepoprawne hasło.';
@@ -659,7 +749,6 @@
         }
     });
 
-    // Przełącznik między logowaniem a rejestracją
     authSwitch.addEventListener('click', () => {
         isRegisterMode = !isRegisterMode;
         authTitle.textContent = isRegisterMode ? 'Rejestracja' : 'Logowanie';
@@ -670,7 +759,6 @@
             'Nie masz konta? <strong>Zarejestruj się</strong>';
     });
 
-    // Wylogowanie
     logoutBtn.addEventListener('click', () => {
         if(currentUser) {
             remove(ref(db, 'online/' + currentUser.nick));
@@ -685,15 +773,13 @@
         removeAllListeners();
     });
 
-    // Przycisk "Przejdź do czatu publicznego"
     publicChatBtn.addEventListener('click', () => {
         switchChatMode('public');
     });
 
-    // Wysyłanie wiadomości (publiczne lub prywatne)
     sendForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if(!currentUser) return;
+        if(!currentUser || isMuted) return;
         let text = msgInput.value.trim();
         if(text.length === 0) return;
 
@@ -715,9 +801,9 @@
         msgInput.value = '';
     });
 
-    // Admin Panel
     adminPanelBtn.addEventListener('click', () => {
         adminPanel.style.display = 'block';
+        updateAdminUserList(); // Ładuje listę wszystkich użytkowników po otwarciu
     });
 
     closeAdminPanelBtn.addEventListener('click', () => {
@@ -736,6 +822,67 @@
         if(confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE wiadomości prywatne? Tej operacji nie można cofnąć!')) {
             await remove(ref(db, 'messages_private'));
             alert('Wszystkie wiadomości prywatne zostały usunięte.');
+            adminPanel.style.display = 'none';
+        }
+    });
+
+    banUserBtn.addEventListener('click', async () => {
+        const userToBan = userActionSelect.value;
+        if (!userToBan) {
+            alert('Wybierz użytkownika do zbanowania.');
+            return;
+        }
+        if (confirm(`Na pewno chcesz zbanować użytkownika ${userToBan}?`)) {
+            const userRef = ref(db, `users/${userToBan}/status`);
+            await update(userRef, { isBanned: true });
+            await remove(ref(db, `online/${userToBan}`));
+            alert(`Użytkownik ${userToBan} został zbanowany.`);
+            updateAdminUserList(); // Odśwież listę po akcji
+            adminPanel.style.display = 'none';
+        }
+    });
+
+    muteUserBtn.addEventListener('click', async () => {
+        const userToMute = userActionSelect.value;
+        if (!userToMute) {
+            alert('Wybierz użytkownika do wyciszenia.');
+            return;
+        }
+        if (confirm(`Na pewno chcesz wyciszyć użytkownika ${userToMute}?`)) {
+            const userRef = ref(db, `users/${userToMute}/status`);
+            await update(userRef, { isMuted: true });
+            alert(`Użytkownik ${userToMute} został wyciszony.`);
+            updateAdminUserList(); // Odśwież listę po akcji
+            adminPanel.style.display = 'none';
+        }
+    });
+
+    unmuteUserBtn.addEventListener('click', async () => {
+        const userToUnmute = userActionSelect.value;
+        if (!userToUnmute) {
+            alert('Wybierz użytkownika do odciszenia.');
+            return;
+        }
+        if (confirm(`Na pewno chcesz odciszyć użytkownika ${userToUnmute}?`)) {
+            const userRef = ref(db, `users/${userToUnmute}/status`);
+            await update(userRef, { isMuted: false });
+            alert(`Użytkownik ${userToUnmute} został odciszony.`);
+            updateAdminUserList(); // Odśwież listę po akcji
+            adminPanel.style.display = 'none';
+        }
+    });
+
+    unbanUserBtn.addEventListener('click', async () => {
+        const userToUnban = userActionSelect.value;
+        if (!userToUnban) {
+            alert('Wybierz użytkownika do odbanowania.');
+            return;
+        }
+        if (confirm(`Na pewno chcesz odbanować użytkownika ${userToUnban}?`)) {
+            const userRef = ref(db, `users/${userToUnban}/status`);
+            await update(userRef, { isBanned: false });
+            alert(`Użytkownik ${userToUnban} został odbanowany.`);
+            updateAdminUserList(); // Odśwież listę po akcji
             adminPanel.style.display = 'none';
         }
     });
