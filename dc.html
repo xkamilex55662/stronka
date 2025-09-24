@@ -78,7 +78,7 @@
             display: none;
         }
         
-        .profile-modal, .add-members-modal {
+        .profile-modal {
             position: fixed;
             top: 50%;
             left: 50%;
@@ -102,7 +102,7 @@
             to { opacity: 1; transform: translate(-50%, -50%); }
         }
         
-        .profile-modal h3, .add-members-modal h3 {
+        .profile-modal h3 {
             margin: 0;
             font-weight: 700;
         }
@@ -403,22 +403,13 @@
             color: var(--muted);
         }
 
-        .chat-actions {
+        .delete-group-btn {
             position: absolute;
             right: 0;
             top: 50%;
             transform: translateY(-50%);
-            display: flex;
-            gap: 10px;
-        }
-        
-        .delete-group-btn {
             background: #f44336;
             padding: 8px 16px;
-        }
-
-        .voice-call-btn:hover, .hang-up-btn:hover, .delete-group-btn:hover {
-            transform: translateY(-1px);
         }
 
         .messages {
@@ -604,7 +595,7 @@
             background: var(--glass);
         }
 
-        .group-creator .checkbox-list, .add-members-modal .checkbox-list {
+        .group-creator .checkbox-list {
             max-height: 150px;
             overflow-y: auto;
             display: flex;
@@ -612,14 +603,14 @@
             gap: 8px;
         }
 
-        .group-creator label, .add-members-modal label {
+        .group-creator label {
             display: flex;
             align-items: center;
             gap: 8px;
             font-size: 14px;
         }
 
-        .group-creator input[type="checkbox"], .add-members-modal input[type="checkbox"] {
+        .group-creator input[type="checkbox"] {
             width: auto;
             padding: 0;
             border-radius: 4px;
@@ -680,7 +671,7 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        .context-menu-item.delete, .context-menu-item.kick {
+        .context-menu-item.delete {
             color: var(--red);
         }
 
@@ -693,23 +684,6 @@
         .members-panel h4 {
             margin: 0;
             color: var(--muted);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .add-member-btn {
-            background: none;
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            padding: 6px 10px;
-            font-size: 12px;
-            border-radius: 4px;
-        }
-        .add-member-btn:hover {
-            background: var(--accent);
-            color: white;
-            transform: none;
         }
 
         .member-list {
@@ -721,7 +695,6 @@
         .member-item {
             background: none;
             padding: 8px;
-            cursor: pointer;
         }
 
         .member-item:hover {
@@ -759,10 +732,6 @@
 
         .owner-badge {
             color: gold;
-            margin-left: 8px;
-        }
-        .admin-badge {
-            color: #7289da;
             margin-left: 8px;
         }
 
@@ -854,9 +823,7 @@
                     <div class="chat-title" id="chatTitle">Wybierz znajomego</div>
                     <div class="chat-sub" id="chatSub">Prywatna rozmowa</div>
                 </div>
-                <div class="chat-actions">
-                    <button id="deleteGroupBtn" class="delete-group-btn" style="display:none;">Usuń grupę</button>
-                </div>
+                <button id="deleteGroupBtn" class="delete-group-btn" style="display:none;">Usuń grupę</button>
             </div>
             <div class="messages" id="messages"></div>
             <div class="composer">
@@ -866,10 +833,7 @@
         </div>
         
         <div class="members-panel" id="membersPanel">
-            <h4 id="membersPanelTitle">
-                Członkowie
-                <button id="addMembersBtn" class="add-member-btn" style="display: none;">Dodaj</button>
-            </h4>
+            <h4 id="membersPanelTitle">Członkowie</h4>
             <div id="membersList" class="member-list"></div>
         </div>
         
@@ -921,22 +885,9 @@
         <div class="context-menu-item delete" id="deleteMsgItem">Usuń dla wszystkich</div>
     </div>
 
-    <div id="memberContextMenu" class="context-menu">
-        <div class="context-menu-item" id="kickMemberItem">Wyrzuć z grupy</div>
-        <div class="context-menu-item" id="setAdminItem">Ustaw jako admina</div>
-        <div class="context-menu-item" id="removeAdminItem">Usuń jako admina</div>
-    </div>
-
-    <div id="addMembersModal" class="add-members-modal">
-        <h3>Dodaj członków</h3>
-        <div class="checkbox-list" id="addMembersList"></div>
-        <button id="confirmAddMembersBtn">Dodaj</button>
-        <button id="cancelAddMembersBtn">Anuluj</button>
-    </div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-        import { getDatabase, ref, set, get, onValue, push, remove, update, onDisconnect } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+        import { getDatabase, ref, set, get, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
         // ===== FIREBASE CONFIG =====
         const firebaseConfig = {
@@ -1000,39 +951,13 @@
         const profileStatus = document.getElementById('profileStatus');
         const profileJoinDate = document.getElementById('profileJoinDate');
 
-        // Nowe elementy DOM
-        const addMembersBtn = document.getElementById('addMembersBtn');
-        const addMembersModal = document.getElementById('addMembersModal');
-        const addMembersList = document.getElementById('addMembersList');
-        const confirmAddMembersBtn = document.getElementById('confirmAddMembersBtn');
-        const cancelAddMembersBtn = document.getElementById('cancelAddMembersBtn');
-        const memberContextMenu = document.getElementById('memberContextMenu');
-        const kickMemberItem = document.getElementById('kickMemberItem');
-        const setAdminItem = document.getElementById('setAdminItem');
-        const removeAdminItem = document.getElementById('removeAdminItem');
-
         let currentUser = null;
         let currentChatId = null;
         let currentChatType = null;
         let myStatus = 'Online';
         let activeMessageId = null;
-        let activeMemberProfile = null;
         let unsubscribeMessageListener = null;
         let unsubscribeGroupMembersListener = null;
-        let groupOwner = null;
-        let groupAdmins = [];
-
-        // Funkcja do zamykania wszystkich nasłuchiwaczy przed otwarciem nowego czatu
-        function closeAllListeners() {
-            if (unsubscribeMessageListener) {
-                unsubscribeMessageListener();
-                unsubscribeMessageListener = null;
-            }
-            if (unsubscribeGroupMembersListener) {
-                unsubscribeGroupMembersListener();
-                unsubscribeGroupMembersListener = null;
-            }
-        }
 
         // ===== AUTH =====
         showRegBtn.onclick = () => { loginForm.style.display = 'none'; registerForm.style.display = 'block'; };
@@ -1070,9 +995,9 @@
             initPresence();
             startListeners();
             set(ref(db, 'status/' + currentUser), 'Online');
-            onDisconnect(ref(db, 'status/' + currentUser)).set('Offline');
             
-            onValue(ref(db, 'status/' + currentUser), snap => {
+            const statusRef = ref(db, 'status/' + currentUser);
+            onValue(statusRef, snap => {
                 myStatus = snap.val() || 'Offline';
                 updateStatusUI(meNickEl.textContent, myStatus);
             });
@@ -1225,7 +1150,6 @@
                 name: groupName,
                 members: members,
                 owner: currentUser,
-                admins: [],
                 createdAt: Date.now()
             };
             await set(ref(db, `groups/${groupKey}`), groupData);
@@ -1308,34 +1232,40 @@
         function updateMemberStatuses(statuses) {
             const memberItems = membersList.querySelectorAll('.member-item');
             memberItems.forEach(item => {
-                const nameEl = item.querySelector('.name');
-                if (nameEl) {
-                    const memberNick = nameEl.textContent;
-                    const dot = item.querySelector('.avatar-status-dot');
-                    const statusTextEl = item.querySelector('.member-status-text');
+                const nick = item.querySelector('.name').textContent;
+                const statusInfo = statuses[nick] || 'Offline';
+                const dot = item.querySelector('.avatar-status-dot');
+                const statusTextEl = item.querySelector('.member-status-text');
 
-                    let color = 'gray';
-                    let statusText = statuses[memberNick] || 'Offline';
-                    let badge = '';
+                let color = 'gray';
+                let statusText = statusInfo;
+                let badge = '';
 
-                    switch (statusText) {
-                        case 'Online':
-                            color = 'green';
-                            break;
-                        case 'Zaraz wracam':
-                            color = 'yellow';
-                            break;
-                        case 'Nie przeszkadzać':
-                            color = 'red';
-                            break;
-                        default:
-                            color = 'gray';
-                    }
+                switch (statusInfo) {
+                    case 'Online':
+                        color = 'green';
+                        break;
+                    case 'Zaraz wracam':
+                        color = 'yellow';
+                        break;
+                    case 'Nie przeszkadzać':
+                        color = 'red';
+                        break;
+                    case 'W grze':
+                         color = '#5c6bc0';
+                         badge = `👾 W grze <span class="status-badge">Gra</span>`;
+                         break;
+                    case 'Rozmawia':
+                         color = '#2196F3';
+                         badge = `🎤 Rozmawia <span class="status-badge">Rozmowa</span>`;
+                         break;
+                    default:
+                        color = 'gray';
+                }
 
-                    if (dot) dot.style.backgroundColor = color;
-                    if (statusTextEl) {
-                        statusTextEl.innerHTML = statusText;
-                    }
+                if (dot) dot.style.backgroundColor = color;
+                if (statusTextEl) {
+                    statusTextEl.innerHTML = badge || statusText;
                 }
             });
         }
@@ -1471,23 +1401,23 @@
             if (profileModal.style.display === 'flex' && !profileModal.contains(e.target) && !e.target.closest('.friend-item') && !e.target.closest('.member-item') && !e.target.closest('.profile')) {
                 profileModal.style.display = 'none';
             }
-            if (addMembersModal.style.display === 'flex' && !addMembersModal.contains(e.target) && e.target.id !== 'addMembersBtn') {
-                addMembersModal.style.display = 'none';
-            }
         });
 
         // ===== CHAT =====
         async function openChat(id, type) {
-            closeAllListeners();
+            if (unsubscribeMessageListener) {
+                unsubscribeMessageListener();
+            }
+            if (unsubscribeGroupMembersListener) {
+                unsubscribeGroupMembersListener();
+            }
 
             currentChatId = id;
             currentChatType = type;
             deleteGroupBtn.style.display = 'none';
-            addMembersBtn.style.display = 'none';
             profileModal.style.display = 'none';
-            membersPanel.style.display = 'flex';
+            membersPanel.style.display = 'none';
             contextMenu.style.display = 'none';
-            memberContextMenu.style.display = 'none';
             messagesEl.innerHTML = '<div style="color: var(--muted); text-align:center; padding-top: 20px;">Ładowanie wiadomości...</div>';
 
             if (type === 'dm') {
@@ -1496,7 +1426,6 @@
                 const avatarHtml = `<div>${id.slice(0, 2).toUpperCase()}</div>`;
                 chatAvatar.innerHTML = avatarHtml;
                 chatTitle.style.cursor = 'default';
-                loadDMMembers(id);
             } else {
                 const groupRef = ref(db, `groups/${id}`);
                 const groupDataSnap = await get(groupRef);
@@ -1505,74 +1434,23 @@
                     chatTitle.textContent = groupData.name;
                     chatSub.textContent = `${groupData.members.length} członków`;
                     chatAvatar.innerHTML = `<div>#</div>`;
-                    
-                    groupOwner = groupData.owner;
-                    groupAdmins = groupData.admins || [];
-                    
-                    const userIsAdmin = currentUser === groupOwner || groupAdmins.includes(currentUser);
-                    
-                    if (userIsAdmin) {
-                         deleteGroupBtn.style.display = 'block';
-                         addMembersBtn.style.display = 'block';
-                    } else {
-                         deleteGroupBtn.style.display = 'none';
-                         addMembersBtn.style.display = 'none';
+                    if (groupData.owner === currentUser) {
+                        deleteGroupBtn.style.display = 'block';
                     }
-
                     membersPanel.style.display = 'flex';
-                    loadMembersPanel(groupData.members, groupData.owner, groupData.admins || []);
+                    loadMembersPanel(groupData.members, groupData.owner);
                 }
                 chatTitle.style.cursor = 'pointer';
             }
             loadMessages();
         }
-        
-        async function loadDMMembers(friendId) {
-            membersList.innerHTML = '';
-            
-            const members = [currentUser, friendId];
-            for (const member of members) {
-                const item = document.createElement('div');
-                item.className = 'member-item';
-                const avatar = `
-                    <div class="avatar">
-                        <div>${member.slice(0, 2).toUpperCase()}</div>
-                        <span class="avatar-status-dot" style="background:gray"></span>
-                    </div>
-                `;
-                const nameAndStatus = `
-                    <div class="member-info">
-                        <div class="name-container">
-                            <span class="name">${member}</span>
-                        </div>
-                        <div class="member-status">
-                            <span class="member-status-text">Offline</span>
-                        </div>
-                    </div>
-                `;
-                item.innerHTML = avatar + nameAndStatus;
-                item.onclick = (e) => showProfile(member);
-                membersList.appendChild(item);
-            }
-            
-            const statusRef = ref(db, 'status');
-            unsubscribeGroupMembersListener = onValue(statusRef, (snapshot) => {
-                const allStatuses = snapshot.val() || {};
-                const statusesToUpdate = {};
-                members.forEach(member => {
-                    statusesToUpdate[member] = allStatuses[member] || 'Offline';
-                });
-                updateMemberStatuses(statusesToUpdate);
-            });
-        }
 
-        async function loadMembersPanel(members, owner, admins) {
+        function loadMembersPanel(members, owner) {
             membersList.innerHTML = '';
             for (const member of members) {
                 const item = document.createElement('div');
                 item.className = 'member-item';
                 const isOwner = member === owner;
-                const isAdmin = admins.includes(member);
                 const avatar = `
                     <div class="avatar">
                         <div>${member.slice(0, 2).toUpperCase()}</div>
@@ -1584,7 +1462,6 @@
                         <div class="name-container">
                             <span class="name">${member}</span>
                             ${isOwner ? '<span class="owner-badge">👑</span>' : ''}
-                            ${!isOwner && isAdmin ? '<span class="admin-badge">🛡️</span>' : ''}
                         </div>
                         <div class="member-status">
                             <span class="member-status-text">Offline</span>
@@ -1592,20 +1469,14 @@
                     </div>
                 `;
                 item.innerHTML = avatar + nameAndStatus;
-                item.onclick = (e) => {
-                    if (e.button === 0) showProfile(member);
-                };
-                const userCanManage = currentUser === owner || groupAdmins.includes(currentUser);
-                if (userCanManage && member !== currentUser) {
-                    item.addEventListener('contextmenu', e => {
-                        e.preventDefault();
-                        activeMemberProfile = member;
-                        showMemberContextMenu(e, isAdmin, isOwner);
-                    });
-                }
+                item.onclick = () => showProfile(member);
                 membersList.appendChild(item);
             }
             
+            if (unsubscribeGroupMembersListener) {
+                unsubscribeGroupMembersListener();
+            }
+
             const statusRef = ref(db, 'status');
             unsubscribeGroupMembersListener = onValue(statusRef, (snapshot) => {
                 const allStatuses = snapshot.val() || {};
@@ -1617,164 +1488,8 @@
             });
         }
 
-        function showMemberContextMenu(e, isAdmin, isOwner) {
-            kickMemberItem.style.display = 'block';
-            setAdminItem.style.display = 'block';
-            removeAdminItem.style.display = 'block';
-            
-            // Wyrzuć
-            kickMemberItem.textContent = "Wyrzuć z grupy";
-            
-            // Ustaw/usuń admina
-            if (isOwner) {
-                kickMemberItem.style.display = 'none'; // Nie można wyrzucić właściciela
-                setAdminItem.style.display = 'none';
-                removeAdminItem.style.display = 'none';
-            } else if (isAdmin) {
-                setAdminItem.style.display = 'none';
-                removeAdminItem.style.display = 'block';
-            } else {
-                setAdminItem.style.display = 'block';
-                removeAdminItem.style.display = 'none';
-            }
-            
-            // Finalne pozycjonowanie
-            memberContextMenu.style.display = 'block';
-            memberContextMenu.style.top = `${e.clientY}px`;
-            memberContextMenu.style.left = `${e.clientX}px`;
-        }
-
-        document.addEventListener('click', (e) => {
-            if (!memberContextMenu.contains(e.target)) {
-                memberContextMenu.style.display = 'none';
-            }
-        });
-
-        kickMemberItem.onclick = async () => {
-            if (activeMemberProfile && currentChatId) {
-                const groupRef = ref(db, `groups/${currentChatId}`);
-                const groupSnap = await get(groupRef);
-                const groupData = groupSnap.val();
-                
-                if (groupData.owner === currentUser || groupAdmins.includes(currentUser)) {
-                    if (confirm(`Czy na pewno chcesz wyrzucić ${activeMemberProfile} z grupy?`)) {
-                        const newMembers = groupData.members.filter(m => m !== activeMemberProfile);
-                        await update(groupRef, { members: newMembers });
-                        await remove(ref(db, `userGroups/${activeMemberProfile}/${currentChatId}`));
-                        await push(ref(db, `groupMessages/${currentChatId}`), {
-                            text: `${activeMemberProfile} został wyrzucony przez ${currentUser}.`,
-                            timestamp: Date.now(),
-                            isSystem: true
-                        });
-                        alert(`${activeMemberProfile} został usunięty z grupy.`);
-                        openChat(currentChatId, 'group');
-                    }
-                } else {
-                    alert("Nie masz uprawnień, aby to zrobić.");
-                }
-            }
-            memberContextMenu.style.display = 'none';
-        };
-
-        setAdminItem.onclick = async () => {
-            if (activeMemberProfile && currentChatId) {
-                const groupRef = ref(db, `groups/${currentChatId}`);
-                const groupSnap = await get(groupRef);
-                const groupData = groupSnap.val();
-                
-                if (groupData.owner === currentUser) {
-                     const updatedAdmins = [...(groupData.admins || []), activeMemberProfile];
-                     await update(groupRef, { admins: updatedAdmins });
-                     alert(`${activeMemberProfile} został mianowany administratorem.`);
-                     openChat(currentChatId, 'group');
-                } else {
-                    alert("Tylko właściciel może nadawać uprawnienia administratora.");
-                }
-            }
-            memberContextMenu.style.display = 'none';
-        };
-
-        removeAdminItem.onclick = async () => {
-             if (activeMemberProfile && currentChatId) {
-                const groupRef = ref(db, `groups/${currentChatId}`);
-                const groupSnap = await get(groupRef);
-                const groupData = groupSnap.val();
-                
-                if (groupData.owner === currentUser) {
-                     const updatedAdmins = (groupData.admins || []).filter(admin => admin !== activeMemberProfile);
-                     await update(groupRef, { admins: updatedAdmins });
-                     alert(`${activeMemberProfile} został pozbawiony uprawnień administratora.`);
-                     openChat(currentChatId, 'group');
-                } else {
-                    alert("Tylko właściciel może usuwać uprawnienia administratora.");
-                }
-            }
-            memberContextMenu.style.display = 'none';
-        };
-
-        addMembersBtn.onclick = async () => {
-            const friendsSnap = await get(ref(db, `friends/${currentUser}`));
-            const groupSnap = await get(ref(db, `groups/${currentChatId}`));
-            const friends = friendsSnap.exists() ? Object.keys(friendsSnap.val()) : [];
-            const groupMembers = groupSnap.exists() ? groupSnap.val().members : [];
-
-            addMembersList.innerHTML = '';
-            const potentialMembers = friends.filter(friend => !groupMembers.includes(friend));
-
-            if (potentialMembers.length === 0) {
-                addMembersList.innerHTML = '<div style="color: var(--muted); text-align:center;">Wszyscy Twoi znajomi są już w tej grupie.</div>';
-                confirmAddMembersBtn.style.display = 'none';
-            } else {
-                potentialMembers.forEach(friend => {
-                    const item = document.createElement('label');
-                    item.innerHTML = `<input type="checkbox" value="${friend}" /> ${friend}`;
-                    addMembersList.appendChild(item);
-                });
-                confirmAddMembersBtn.style.display = 'block';
-            }
-
-            addMembersModal.style.display = 'flex';
-        };
-
-        cancelAddMembersBtn.onclick = () => {
-            addMembersModal.style.display = 'none';
-        };
-
-        confirmAddMembersBtn.onclick = async () => {
-            const newMembers = [];
-            document.querySelectorAll('#addMembersList input:checked').forEach(checkbox => {
-                newMembers.push(checkbox.value);
-            });
-
-            if (newMembers.length > 0) {
-                const groupRef = ref(db, `groups/${currentChatId}`);
-                const groupSnap = await get(groupRef);
-                const groupData = groupSnap.val();
-                
-                const currentMembers = groupData.members;
-                const updatedMembers = [...currentMembers, ...newMembers];
-                
-                await update(groupRef, { members: updatedMembers });
-                
-                for (const member of newMembers) {
-                    await set(ref(db, `userGroups/${member}/${currentChatId}`), true);
-                    await push(ref(db, `groupMessages/${currentChatId}`), {
-                        text: `${member} został dodany do grupy przez ${currentUser}.`,
-                        timestamp: Date.now(),
-                        isSystem: true
-                    });
-                }
-                
-                alert('Członkowie zostali dodani.');
-                addMembersModal.style.display = 'none';
-                openChat(currentChatId, 'group');
-            } else {
-                alert('Wybierz co najmniej jednego członka.');
-            }
-        };
-
         chatTitle.addEventListener('dblclick', async () => {
-            if (currentChatType === 'group' && currentChatId && (currentUser === groupOwner || groupAdmins.includes(currentUser))) {
+            if (currentChatType === 'group' && currentChatId) {
                 const currentName = chatTitle.textContent;
                 const input = document.createElement('input');
                 input.type = 'text';
@@ -1807,8 +1522,6 @@
                     input.replaceWith(chatTitle);
                     chatTitle.textContent = currentName;
                 });
-            } else if (currentChatType === 'group') {
-                alert("Tylko właściciel lub administrator może edytować nazwę grupy.");
             }
         });
 
@@ -1917,7 +1630,7 @@
             if (!text || !currentChatId) return;
 
             const isImage = /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(text);
-            const isGif = /\.(gif)$/i.i.test(text);
+            const isGif = /\.(gif)$/i.test(text);
 
             const message = {
                 from: currentUser,
@@ -1943,8 +1656,7 @@
                 sendMsgBtn.click();
             }
         });
-        
-        // Finalne sprawdzenie statusu logowania
+
         const loggedInUser = localStorage.getItem('currentUser');
         if (loggedInUser) {
             loginAs(loggedInUser);
