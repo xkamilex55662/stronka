@@ -786,7 +786,6 @@
                 <button class="logoutBtn" id="logoutBtn" style="display:none">🚪</button>
             </div>
 
-            <div class="active-users-info">Aktywni: <span id="activeUsersCount">0</span></div>
             <div class="requests-toggle" id="requestsToggle">
                 <h4 style="color:var(--muted); margin:0;">Zaproszenia</h4>
                 <span class="requests-count" id="requestsCount">0</span>
@@ -1340,6 +1339,26 @@
         requestsToggle.onclick = () => {
             requestsListEl.style.display = requestsListEl.style.display === 'flex' ? 'none' : 'flex';
         };
+
+        // ===== AUTO OFFLINE ON EXIT =====
+        window.addEventListener('beforeunload', () => {
+            if (currentUser) {
+                set(ref(db, 'status/' + currentUser), 'Offline');
+                remove(ref(db, 'online/' + currentUser));
+            }
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (currentUser) {
+                if (document.visibilityState === 'hidden') {
+                    set(ref(db, 'status/' + currentUser), 'Offline');
+                    remove(ref(db, 'online/' + currentUser));
+                } else {
+                    set(ref(db, 'status/' + currentUser), 'Online');
+                    set(ref(db, 'online/' + currentUser), true);
+                }
+            }
+        });
 
         async function loadRequests() {
             const snap = await get(ref(db, `friendRequests/${currentUser}`));
