@@ -1,201 +1,362 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <title>Czat Globalny</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
-    }
-    #chatBox {
-      width: 400px;
-      height: 300px;
-      border: 1px solid #444;
-      margin: 20px auto;
-      background: rgba(0,0,0,0.6);
-      padding: 10px;
-      overflow-y: auto;
-      text-align: left;
-      border-radius: 8px;
-    }
-    #msgInput {
-      width: 320px;
-      padding: 5px;
-      margin-top: 5px;
-      background: #333;
-      color: white;
-      border: 1px solid #444;
-      border-radius: 4px;
-    }
-    #sendBtn {
-      padding: 6px 12px;
-      background: #28a745;
-      color: white;
-      border: none;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    #sendBtn:hover {
-      background: #218838;
-    }
-    /* Okienko nicku */
-    #nickModal {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.9);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      z-index: 9999;
-    }
-    #nickInput {
-      padding: 10px;
-      font-size: 16px;
-      margin-top: 10px;
-      border-radius: 4px;
-      border: none;
-    }
-    #confirmNick {
-      margin-top: 10px;
-      padding: 8px 15px;
-      cursor: pointer;
-      background: #28a745;
-      border: none;
-      color: white;
-      border-radius: 4px;
-    }
-    /* Migający efekt */
-    .blinking {
-      animation: blink 1s infinite;
-      color: red;
-      font-weight: bold;
-    }
-    @keyframes blink {
-      0% { opacity: 1; }
-      50% { opacity: 0; }
-      100% { opacity: 1; }
-    }
-    /* Wiadomość z timestampem */
-    .message {
-      display: flex;
-      justify-content: space-between;
-      margin: 4px 0;
-    }
-    .msg-text {
-      flex: 1;
-    }
-    .msg-time {
-      color: #aaa;
-      font-size: 12px;
-      margin-left: 10px;
-      white-space: nowrap;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Czat Globalny - Rejestracja na nick + hasło</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+  }
+  #chatBox {
+    width: 400px;
+    height: 300px;
+    border: 1px solid #444;
+    margin: 20px auto;
+    background: rgba(0,0,0,0.6);
+    padding: 10px;
+    overflow-y: auto;
+    text-align: left;
+    border-radius: 8px;
+  }
+  #msgInput {
+    width: 320px;
+    padding: 5px;
+    margin-top: 5px;
+    background: #333;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 4px;
+  }
+  #sendBtn {
+    padding: 6px 12px;
+    background: #28a745;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  #sendBtn:hover {
+    background: #218838;
+  }
+  #authContainer {
+    margin-top: 20px;
+  }
+  input[type="text"], input[type="password"] {
+    padding: 8px;
+    font-size: 14px;
+    margin: 5px;
+    border-radius: 4px;
+    border: none;
+    width: 150px;
+  }
+  button {
+    cursor: pointer;
+  }
+  #errorMsg {
+    color: #f44336;
+    font-weight: bold;
+    margin-top: 10px;
+  }
+  .message {
+    display: flex;
+    justify-content: space-between;
+    margin: 4px 0;
+  }
+  .msg-text {
+    flex: 1;
+  }
+  .msg-time {
+    color: #aaa;
+    font-size: 12px;
+    margin-left: 10px;
+    white-space: nowrap;
+  }
+  .deleteBtn {
+    background: #d9534f;
+    border: none;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+    padding: 2px 6px;
+    font-size: 12px;
+  }
+  #userInfo {
+    margin-top: 10px;
+  }
+</style>
 </head>
 <body>
-  <h2>💬 Czat Globalny</h2>
-  <h4 id="userCount">Online: 0</h4>
-  <div id="chatBox"></div>
-  <input type="text" id="msgInput" placeholder="Napisz wiadomość...">
+
+<h2>💬 Czat Globalny</h2>
+<h4>Online: <span id="userCount">0</span></h4>
+
+<div id="chatBox"></div>
+
+<div id="sendContainer" style="display:none;">
+  <input type="text" id="msgInput" placeholder="Napisz wiadomość..." />
   <button id="sendBtn">Wyślij</button>
-  <p class="blinking">⚠ Czatu nie da się usunąć ⚠</p>
+</div>
 
-  <!-- Okienko nicku -->
-  <div id="nickModal">
-    <h2 class="blinking">⚠ Wprowadź swój nick ⚠</h2>
-    <input type="text" id="nickInput" placeholder="Twój nick">
-    <button id="confirmNick">Dołącz</button>
-  </div>
+<div id="authContainer">
+  <h3>Rejestracja</h3>
+  <input type="text" id="regNick" placeholder="Nick" />
+  <input type="password" id="regPass" placeholder="Hasło" />
+  <button id="registerBtn">Zarejestruj się</button>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-    import { getDatabase, ref, push, onValue, set, onDisconnect } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+  <h3>Logowanie</h3>
+  <input type="text" id="loginNick" placeholder="Nick" />
+  <input type="password" id="loginPass" placeholder="Hasło" />
+  <button id="loginBtn">Zaloguj się</button>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBWtZUr7xoa31uoH18hksqSjCXMd2F18Ew",
-      authDomain: "strona-f0d19.firebaseapp.com",
-      databaseURL: "https://strona-f0d19-default-rtdb.firebaseio.com",
-      projectId: "strona-f0d19",
-      storageBucket: "strona-f0d19.firebasestorage.app",
-      messagingSenderId: "34203329400",
-      appId: "1:34203329400:web:c934bf311237b1a6701e8d",
-      measurementId: "G-HYCP5F1J3E"
-    };
+  <div id="errorMsg"></div>
+</div>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+<div id="userInfo" style="display:none;">
+  Zalogowano jako: <span id="currentUserNick"></span>
+  <button id="logoutBtn">Wyloguj się</button>
+</div>
 
-    let username = "";
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getDatabase, ref, set, get, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
-    // Okienko nicku
-    const modal = document.getElementById("nickModal");
-    document.getElementById("confirmNick").addEventListener("click", () => {
-      const inputNick = document.getElementById("nickInput").value.trim();
-      if (inputNick.length > 0) {
-        username = inputNick;
-        modal.style.display = "none";
+// Konfiguracja Firebase - zastąp swoimi danymi
+const firebaseConfig = {
+  apiKey: "AIzaSyBWtZUr7xoa31uoH18hksqSjCXMd2F18Ew",
+  authDomain: "strona-f0d19.firebaseapp.com",
+  databaseURL: "https://strona-f0d19-default-rtdb.firebaseio.com",
+  projectId: "strona-f0d19",
+  storageBucket: "strona-f0d19.firebasestorage.app",
+  messagingSenderId: "34203329400",
+  appId: "1:34203329400:web:c934bf311237b1a6701e8d",
+  measurementId: "G-HYCP5F1J3E"
+};
 
-        // Dodaj użytkownika do online
-        const onlineRef = ref(db, "online/" + username);
-        set(onlineRef, true);
-        onDisconnect(onlineRef).remove();
-      }
-    });
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-    // Formatowanie daty i godziny (z rokiem)
-    function formatDate(timestamp) {
-      const d = new Date(timestamp);
-      const day = String(d.getDate()).padStart(2, "0");
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const year = d.getFullYear();
-      const time = d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
-      return `${day}.${month}.${year} ${time}`;
-    }
+const regNick = document.getElementById('regNick');
+const regPass = document.getElementById('regPass');
+const registerBtn = document.getElementById('registerBtn');
 
-    // Wyświetlanie wiadomości
-    const chatBox = document.getElementById("chatBox");
-    const messagesRef = ref(db, "messages");
-    onValue(messagesRef, (snapshot) => {
-      chatBox.innerHTML = "";
-      snapshot.forEach((msgSnap) => {
-        const msg = msgSnap.val();
-        const time = msg.timestamp ? formatDate(msg.timestamp) : "";
-        chatBox.innerHTML += `
-          <div class="message">
-            <div class="msg-text"><b>${msg.user}:</b> ${msg.text}</div>
-            <div class="msg-time">${time}</div>
-          </div>`;
-      });
-      chatBox.scrollTop = chatBox.scrollHeight;
-    });
+const loginNick = document.getElementById('loginNick');
+const loginPass = document.getElementById('loginPass');
+const loginBtn = document.getElementById('loginBtn');
 
-    // Liczenie użytkowników online
-    const usersRef = ref(db, "online");
-    onValue(usersRef, (snapshot) => {
-      let count = 0;
-      snapshot.forEach(() => { count++; });
-      document.getElementById("userCount").textContent = "Online: " + count;
-    });
+const errorMsg = document.getElementById('errorMsg');
 
-    // Wysyłanie wiadomości
-    document.getElementById("sendBtn").addEventListener("click", () => {
-      const text = document.getElementById("msgInput").value;
-      if (text.trim().length > 0 && username !== "") {
-        push(messagesRef, {
-          user: username,
-          text: text,
-          timestamp: Date.now()
+const chatBox = document.getElementById('chatBox');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const sendContainer = document.getElementById('sendContainer');
+
+const authContainer = document.getElementById('authContainer');
+const userInfo = document.getElementById('userInfo');
+const currentUserNickSpan = document.getElementById('currentUserNick');
+const logoutBtn = document.getElementById('logoutBtn');
+
+const userCountSpan = document.getElementById('userCount');
+
+let currentUser = null; // Obiekt: {nick, isAdmin}
+let onlineUsers = {};
+
+function hashPassword(pass) {
+  // Prosty hash - dla demo! W produkcji użyj lepszego (np. bcrypt server-side)
+  let hash = 0, i, chr;
+  for (i = 0; i < pass.length; i++) {
+    chr = pass.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr;
+    hash |= 0;
+  }
+  return hash.toString();
+}
+
+// Rejestracja
+registerBtn.addEventListener('click', async () => {
+  const nick = regNick.value.trim();
+  const pass = regPass.value.trim();
+  errorMsg.textContent = '';
+
+  if (!nick || !pass) {
+    errorMsg.textContent = 'Wypełnij nick i hasło!';
+    return;
+  }
+  if (nick.length < 3) {
+    errorMsg.textContent = 'Nick musi mieć minimum 3 znaki!';
+    return;
+  }
+
+  // Sprawdź czy nick jest wolny
+  const userRef = ref(db, 'users/' + nick);
+  const snapshot = await get(userRef);
+  if (snapshot.exists()) {
+    errorMsg.textContent = 'Ten nick jest już zajęty!';
+    return;
+  }
+
+  // Zapisz użytkownika
+  await set(userRef, {
+    passwordHash: hashPassword(pass),
+    isAdmin: false
+  });
+
+  errorMsg.style.color = 'lime';
+  errorMsg.textContent = 'Zarejestrowano! Teraz się zaloguj.';
+  regNick.value = '';
+  regPass.value = '';
+});
+
+// Logowanie
+loginBtn.addEventListener('click', async () => {
+  const nick = loginNick.value.trim();
+  const pass = loginPass.value.trim();
+  errorMsg.style.color = 'red';
+  errorMsg.textContent = '';
+
+  if (!nick || !pass) {
+    errorMsg.textContent = 'Wypełnij nick i hasło!';
+    return;
+  }
+
+  const userRef = ref(db, 'users/' + nick);
+  const snapshot = await get(userRef);
+  if (!snapshot.exists()) {
+    errorMsg.textContent = 'Nie ma takiego użytkownika!';
+    return;
+  }
+  const data = snapshot.val();
+  if (data.passwordHash !== hashPassword(pass)) {
+    errorMsg.textContent = 'Niepoprawne hasło!';
+    return;
+  }
+
+  // Zalogowano
+  currentUser = {
+    nick: nick,
+    isAdmin: data.isAdmin || false
+  };
+  errorMsg.textContent = '';
+  authContainer.style.display = 'none';
+  userInfo.style.display = 'block';
+  currentUserNickSpan.textContent = nick;
+  sendContainer.style.display = 'block';
+
+  // Dodaj do online
+  const onlineRef = ref(db, 'online/' + nick);
+  set(onlineRef, true);
+
+  // Usuń przy wylogowaniu lub zamknięciu
+  window.addEventListener('beforeunload', () => {
+    remove(onlineRef);
+  });
+
+  loadMessages();
+  loadOnlineUsers();
+});
+
+// Wyloguj się
+logoutBtn.addEventListener('click', () => {
+  if (!currentUser) return;
+  const onlineRef = ref(db, 'online/' + currentUser.nick);
+  remove(onlineRef);
+  currentUser = null;
+  authContainer.style.display = 'block';
+  userInfo.style.display = 'none';
+  sendContainer.style.display = 'none';
+  chatBox.innerHTML = '';
+  userCountSpan.textContent = '0';
+  errorMsg.textContent = '';
+});
+
+// Wysyłanie wiadomości
+sendBtn.addEventListener('click', () => {
+  if (!currentUser) return;
+  const text = msgInput.value.trim();
+  if (!text) return;
+
+  const messagesRef = ref(db, 'messages');
+  push(messagesRef, {
+    user: currentUser.nick,
+    text: text,
+    timestamp: Date.now()
+  });
+  msgInput.value = '';
+});
+
+// Ładowanie wiadomości i wyświetlanie z możliwością usuwania dla admina
+function loadMessages() {
+  const messagesRef = ref(db, 'messages');
+  onValue(messagesRef, (snapshot) => {
+    chatBox.innerHTML = '';
+    snapshot.forEach((msgSnap) => {
+      const msg = msgSnap.val();
+      const key = msgSnap.key;
+      const time = formatDate(msg.timestamp);
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message';
+
+      const textDiv = document.createElement('div');
+      textDiv.className = 'msg-text';
+      textDiv.innerHTML = `<b>${escapeHtml(msg.user)}:</b> ${escapeHtml(msg.text)}`;
+      messageDiv.appendChild(textDiv);
+
+      const timeDiv = document.createElement('div');
+      timeDiv.className = 'msg-time';
+      timeDiv.textContent = time;
+      messageDiv.appendChild(timeDiv);
+
+      if(currentUser && currentUser.isAdmin) {
+        const delBtn = document.createElement('button');
+        delBtn.className = 'deleteBtn';
+        delBtn.textContent = 'Usuń';
+        delBtn.addEventListener('click', () => {
+          if(confirm('Na pewno usunąć tę wiadomość?')) {
+            remove(ref(db, 'messages/' + key));
+          }
         });
-        document.getElementById("msgInput").value = "";
+        messageDiv.appendChild(delBtn);
       }
+
+      chatBox.appendChild(messageDiv);
     });
-  </script>
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+}
+
+// Ładowanie liczby online
+function loadOnlineUsers() {
+  const onlineRef = ref(db, 'online');
+  onValue(onlineRef, (snapshot) => {
+    userCountSpan.textContent = snapshot.size;
+  });
+}
+
+// Formatowanie daty i godziny
+function formatDate(timestamp) {
+  if (!timestamp) return '';
+  const d = new Date(timestamp);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const time = d.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+  return `${day}.${month}.${year} ${time}`;
+}
+
+// Proste zabezpieczenie przed XSS
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+</script>
 </body>
 </html>
