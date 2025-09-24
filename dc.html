@@ -44,11 +44,25 @@ button:hover {filter:brightness(1.1);}
 .logoutBtn, .settingsBtn{background:none;border:none;color:var(--muted);font-size:18px;position:absolute;top:50%;transform:translateY(-50%);cursor:pointer;padding:0;}
 .logoutBtn{right:0;}
 .settingsBtn{right:40px;}
-.friends-list, .groups-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
-.friend-item, .group-item{display:flex;align-items:center;padding:8px;border-radius:8px;background:var(--glass);cursor:pointer;transition:background 0.2s;}
+.friends-list, .groups-list, .requests-list{
+    flex:1;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+.friend-item, .group-item{
+    display:flex;
+    align-items:center;
+    padding:8px;
+    border-radius:8px;
+    background:var(--glass);
+    cursor:pointer;
+    transition:background 0.2s;
+}
 .friend-item:hover, .group-item:hover{background:rgba(255,255,255,0.1);}
-.friend-item .avatar, .group-item .avatar{width:32px;height:32px;font-size:12px;margin-right:10px;}
-.friend-item .name, .group-item .name{font-weight:600;}
+.friend-item .avatar, .group-item .avatar{width:32px;height:32px;font-size:12px;margin-right:10px;flex-shrink:0;}
+.friend-item .name, .group-item .name{font-weight:600;word-break:break-all;}
 .friend-item .small-muted, .group-item .small-muted{font-size:11px;color:var(--muted);}
 .friend-item .right-actions{margin-left:auto;display:flex;gap:6px;}
 .friend-item .right-actions button{padding:6px 12px;background:var(--accent);font-size:12px;}
@@ -97,6 +111,29 @@ label{color:var(--muted);font-size:14px;}
 .group-creator .checkbox-list {max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px;}
 .delete-btn {background: #f44336; margin-left: auto; padding: 6px 12px; font-size: 12px;}
 .chat-header .delete-group-btn {position: absolute; right: 12px; top: 12px; background: #f44336;}
+.active-users-info {font-size: 14px; color: var(--muted); text-align: center;}
+.msg img, .msg video {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-top: 5px;
+    cursor: pointer;
+}
+/* Styl dla paska przewijania */
+::-webkit-scrollbar {
+    width: 10px;
+    background-color: transparent;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
 </style>
 </head>
 <body>
@@ -119,6 +156,7 @@ label{color:var(--muted);font-size:14px;}
         </div>
         <button class="logoutBtn" id="logoutBtn" style="display:none">🚪</button>
     </div>
+    <div class="active-users-info">Aktywni: <span id="activeUsersCount">0</span></div>
     <h4 style="color:var(--muted); margin:0;">Znajomi</h4>
     <input id="addFriendInput" placeholder="Dodaj znajomego..." />
     <button id="addFriendBtn">Dodaj</button>
@@ -139,7 +177,7 @@ label{color:var(--muted);font-size:14px;}
 </div>
 <div class="middle">
     <h4 style="color:var(--muted); margin:0;">Zaproszenia</h4>
-    <div class="friends-list" id="requestsList"></div>
+    <div class="requests-list" id="requestsList"></div>
 </div>
 <div class="main">
     <div class="chat-header">
@@ -152,7 +190,7 @@ label{color:var(--muted);font-size:14px;}
     </div>
     <div class="messages" id="messages"></div>
     <div class="composer">
-        <input type="text" id="msgInput" placeholder="Napisz wiadomość..." autocomplete="off" />
+        <input type="text" id="msgInput" placeholder="Napisz wiadomość... lub wklej link do obrazka/GIF-a" autocomplete="off" />
         <button id="sendMsgBtn">Wyślij</button>
     </div>
 </div>
@@ -244,6 +282,7 @@ const confirmCreateGroupBtn = document.getElementById('confirmCreateGroupBtn');
 const cancelCreateGroupBtn = document.getElementById('cancelCreateGroupBtn');
 const groupsListEl = document.getElementById('groupsList');
 const deleteGroupBtn = document.getElementById('deleteGroupBtn');
+const activeUsersCountEl = document.getElementById('activeUsersCount');
 
 let currentUser = null;
 let currentChatId = null;
@@ -297,6 +336,10 @@ function initPresence(){
     const onRef = ref(db,'online/'+currentUser);
     set(onRef,true);
     onDisconnect(onRef).remove();
+    onValue(ref(db, 'online'), (snapshot) => {
+        const count = snapshot.size;
+        activeUsersCountEl.textContent = count;
+    });
 }
 
 // ===== STATUS =====
@@ -470,12 +513,10 @@ async function loadGroups(){
     const snap = await get(ref(db,`userGroups/${currentUser}`));
     groupsListEl.innerHTML = '';
     if(snap.exists()){
-        const promises = [];
-        snap.forEach(groupSnap => {
-            const groupId = groupSnap.key;
-            promises.push(get(ref(db, `groups/${groupId}`)));
-        });
+        const groupIds = Object.keys(snap.val());
+        const promises = groupIds.map(groupId => get(ref(db, `groups/${groupId}`)));
         const groupDataSnaps = await Promise.all(promises);
+        
         groupDataSnaps.forEach(groupDataSnap => {
             if (groupDataSnap.exists()) {
                 const groupId = groupDataSnap.key;
@@ -556,7 +597,17 @@ function loadMessages(){
             const container=document.createElement('div');container.className=`msg-container ${isMe?'me':''}`;
             const av=document.createElement('div');av.className='avatar';av.innerHTML=avatarHtml;
             const div=document.createElement('div');div.className='msg'+(isMe?' me':'');
-            let content = `<div class="meta"><span>${msg.from}</span> <span style="margin-left:5px;font-weight: normal; color: var(--muted);">${new Date(msg.timestamp).toLocaleTimeString()}</span></div>${msg.text || ''}`;
+            
+            let content = `<div class="meta"><span>${msg.from}</span> <span style="margin-left:5px;font-weight: normal; color: var(--muted);">${new Date(msg.timestamp).toLocaleTimeString()}</span></div>`;
+            
+            if (msg.isImage) {
+                content += `<img src="${msg.text}" alt="Image" onclick="window.open(this.src)" />`;
+            } else if (msg.isGif) {
+                content += `<img src="${msg.text}" alt="GIF" onclick="window.open(this.src)" />`;
+            } else {
+                content += msg.text || '';
+            }
+            
             div.innerHTML = content;
             container.appendChild(av);container.appendChild(div);
             messagesEl.appendChild(container);
@@ -569,9 +620,20 @@ sendMsgBtn.onclick = async ()=>{
     if(!currentChatId) return;
     const text = msgInput.value.trim();
     if(!text){alert("Wpisz wiadomość.");return;}
+    
     const messagesPath = currentChatType === 'dm' ? 'dms/' + [currentUser, currentChatId].sort().join('_') : 'groupMessages/' + currentChatId;
     const chatRef = ref(db, messagesPath);
+    
     let msgObj = {from:currentUser,timestamp:Date.now(), text: text};
+    
+    const urlPattern = new RegExp(/\.(gif|jpg|jpeg|png)$/i);
+    if (urlPattern.test(text)) {
+        msgObj.isImage = true;
+        if (text.toLowerCase().endsWith('.gif')) {
+            msgObj.isGif = true;
+        }
+    }
+
     await push(chatRef,msgObj);
     msgInput.value='';
 }
@@ -582,5 +644,3 @@ if(storedUser) loginAs(storedUser);
 </script>
 </body>
 </html>
-
-
