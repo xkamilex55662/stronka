@@ -433,6 +433,7 @@
                 <select id="userActionSelect">
                     <option value="">Wybierz użytkownika...</option>
                 </select>
+                <button id="kickUserBtn" class="btn-warning">Wyrzuć</button>
                 <button id="banUserBtn" class="btn-danger">Banuj</button>
                 <button id="muteUserBtn" class="btn-warning">Wycisz</button>
                 <button id="unmuteUserBtn" class="btn-success">Odcisz</button>
@@ -516,6 +517,7 @@
     const deleteAllPrivateBtn = document.getElementById('deleteAllPrivateBtn');
     const closeAdminPanelBtn = document.getElementById('closeAdminPanel');
     const userActionSelect = document.getElementById('userActionSelect');
+    const kickUserBtn = document.getElementById('kickUserBtn');
     const banUserBtn = document.getElementById('banUserBtn');
     const muteUserBtn = document.getElementById('muteUserBtn');
     const unbanUserBtn = document.getElementById('unbanUserBtn');
@@ -527,6 +529,8 @@
     let messageListeners = [];
     let isMuted = false;
     let isBanned = false;
+    let lastMessageTimestamp = 0;
+    const spamInterval = 2000; // 2 sekundy
 
     function formatDate(ts) {
         const d = new Date(ts);
@@ -539,7 +543,12 @@
         return div.innerHTML;
     }
 
+    function scrollToBottom() {
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
     function renderMessages(messagesSnapshot) {
+        const isAtBottom = chatBox.scrollHeight - chatBox.clientHeight <= chatBox.scrollTop + 1;
         chatBox.innerHTML = '';
         const messages = [];
 
@@ -587,7 +596,9 @@
             chatBox.appendChild(div);
         });
 
-        chatBox.scrollTop = chatBox.scrollHeight;
+        if (isAtBottom) {
+            scrollToBottom();
+        }
     }
 
     function removeAllListeners() {
@@ -628,7 +639,6 @@
         listenForMessages();
     }
 
-    // Nowa funkcja do aktualizacji listy użytkowników w panelu admina
     async function updateAdminUserList() {
         const usersRef = ref(db, 'users');
         const usersSnapshot = await get(usersRef);
@@ -652,7 +662,6 @@
         }
     }
 
-    // Słuchaj na liście online tylko do wyświetlania w sidebarze
     const onlineRef = ref(db, 'online');
     onValue(onlineRef, (snapshot) => {
         usersListEl.innerHTML = '';
@@ -780,10 +789,15 @@
     sendForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if(!currentUser || isMuted) return;
+        const now = Date.now();
+        if (now - lastMessageTimestamp < spamInterval) {
+            alert('Spam! Poczekaj 2 sekundy przed wysłaniem kolejnej wiadomości.');
+            return;
+        }
         let text = msgInput.value.trim();
         if(text.length === 0) return;
 
-        const timestamp = Date.now();
+        const timestamp = now;
         const msgObject = {
             user: currentUser.nick,
             text,
@@ -799,15 +813,30 @@
             await push(ref(db, 'messages'), msgObject);
         }
         msgInput.value = '';
+        lastMessageTimestamp = now;
     });
 
     adminPanelBtn.addEventListener('click', () => {
         adminPanel.style.display = 'block';
-        updateAdminUserList(); // Ładuje listę wszystkich użytkowników po otwarciu
+        updateAdminUserList();
     });
 
     closeAdminPanelBtn.addEventListener('click', () => {
         adminPanel.style.display = 'none';
+    });
+    
+    kickUserBtn.addEventListener('click', async () => {
+        const userToKick = userActionSelect.value;
+        if (!userToKick) {
+            alert('Wybierz użytkownika do wyrzucenia.');
+            return;
+        }
+        if (confirm(`Na pewno chcesz wyrzucić użytkownika ${userToKick}?`)) {
+            await remove(ref(db, `online/${userToKick}`));
+            alert(`Użytkownik ${userToKick} został wyrzucony.`);
+            updateAdminUserList();
+            adminPanel.style.display = 'none';
+        }
     });
 
     deleteAllPublicBtn.addEventListener('click', async () => {
@@ -837,7 +866,7 @@
             await update(userRef, { isBanned: true });
             await remove(ref(db, `online/${userToBan}`));
             alert(`Użytkownik ${userToBan} został zbanowany.`);
-            updateAdminUserList(); // Odśwież listę po akcji
+            updateAdminUserList(); 
             adminPanel.style.display = 'none';
         }
     });
@@ -852,7 +881,7 @@
             const userRef = ref(db, `users/${userToMute}/status`);
             await update(userRef, { isMuted: true });
             alert(`Użytkownik ${userToMute} został wyciszony.`);
-            updateAdminUserList(); // Odśwież listę po akcji
+            updateAdminUserList(); 
             adminPanel.style.display = 'none';
         }
     });
@@ -867,7 +896,7 @@
             const userRef = ref(db, `users/${userToUnmute}/status`);
             await update(userRef, { isMuted: false });
             alert(`Użytkownik ${userToUnmute} został odciszony.`);
-            updateAdminUserList(); // Odśwież listę po akcji
+            updateAdminUserList();
             adminPanel.style.display = 'none';
         }
     });
@@ -882,7 +911,7 @@
             const userRef = ref(db, `users/${userToUnban}/status`);
             await update(userRef, { isBanned: false });
             alert(`Użytkownik ${userToUnban} został odbanowany.`);
-            updateAdminUserList(); // Odśwież listę po akcji
+            updateAdminUserList(); 
             adminPanel.style.display = 'none';
         }
     });
