@@ -77,6 +77,35 @@
             border-left: 1px solid var(--subtle-border);
             display: none;
         }
+        
+        .profile-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--panel);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            width: 300px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -45%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+        
+        .profile-modal h3 {
+            margin: 0;
+            font-weight: 700;
+        }
 
         input, button {
             font-family: inherit;
@@ -147,6 +176,11 @@
             height: 12px;
             border-radius: 50%;
             border: 2px solid var(--panel);
+        }
+        .avatar.profile-modal-avatar {
+            width: 80px;
+            height: 80px;
+            font-size: 24px;
         }
 
         .nick {
@@ -369,13 +403,83 @@
             color: var(--muted);
         }
 
-        .delete-group-btn {
+        .chat-actions {
             position: absolute;
             right: 0;
             top: 50%;
             transform: translateY(-50%);
+            display: flex;
+            gap: 10px;
+        }
+
+        .voice-action-btn {
+            background: var(--accent);
+            color: white;
+            font-size: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .voice-action-btn:hover {
+            background: #4a6ceb;
+            transform: translateY(-1px);
+        }
+
+        .voice-call-btn, .hang-up-btn {
+            background: var(--accent);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: none;
+        }
+        
+        .delete-group-btn {
             background: #f44336;
             padding: 8px 16px;
+        }
+
+        .voice-call-btn:hover, .hang-up-btn:hover, .delete-group-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .voice-call-btn.active {
+            background: var(--green);
+        }
+
+        .hang-up-btn.active {
+            background: var(--red);
+        }
+        
+        .voice-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-right: 10px;
+        }
+
+        .speaking-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--muted);
+            animation: none;
+        }
+        .is-speaking {
+            background-color: var(--speaking);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
         }
 
         .messages {
@@ -789,7 +893,15 @@
                     <div class="chat-title" id="chatTitle">Wybierz znajomego</div>
                     <div class="chat-sub" id="chatSub">Prywatna rozmowa</div>
                 </div>
-                <button id="deleteGroupBtn" class="delete-group-btn" style="display:none;">Usuń grupę</button>
+                <div class="chat-actions">
+                    <div class="voice-controls" id="voiceControls" style="display:none">
+                        <button class="voice-action-btn" id="muteMicBtn">🎤</button>
+                        <button class="voice-action-btn" id="muteSpeakerBtn">🔊</button>
+                    </div>
+                    <button id="voiceCallBtn" class="voice-call-btn" style="display:none;">📞 Zadzwoń</button>
+                    <button id="hangUpBtn" class="hang-up-btn" style="display:none;">📞 Rozłącz</button>
+                    <button id="deleteGroupBtn" class="delete-group-btn" style="display:none;">Usuń grupę</button>
+                </div>
             </div>
             <div class="messages" id="messages"></div>
             <div class="composer">
@@ -802,7 +914,14 @@
             <h4 id="membersPanelTitle">Członkowie</h4>
             <div id="membersList" class="member-list"></div>
         </div>
+        
+    </div>
 
+    <div class="profile-modal" id="profileModal">
+        <div class="avatar profile-modal-avatar" id="profileAvatar">?</div>
+        <h3 id="profileNick"></h3>
+        <div id="profileStatus"></div>
+        <div id="profileJoinDate" class="small-muted"></div>
     </div>
 
     <div class="auth-modal" id="authModal">
@@ -846,7 +965,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-        import { getDatabase, ref, set, get, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+        import { getDatabase, ref, set, get, onValue, push, remove, update, onDisconnect } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
         // ===== FIREBASE CONFIG =====
         const firebaseConfig = {
@@ -904,13 +1023,55 @@
         const deleteMsgItem = document.getElementById('deleteMsgItem');
         const membersPanel = document.getElementById('membersPanel');
         const membersList = document.getElementById('membersList');
+        const profileModal = document.getElementById('profileModal');
+        const profileAvatar = document.getElementById('profileAvatar');
+        const profileNick = document.getElementById('profileNick');
+        const profileStatus = document.getElementById('profileStatus');
+        const profileJoinDate = document.getElementById('profileJoinDate');
+
+        // ===== VOICE CHAT DOM ELEMENTS =====
+        const voiceCallBtn = document.getElementById('voiceCallBtn');
+        const hangUpBtn = document.getElementById('hangUpBtn');
+        const voiceControls = document.getElementById('voiceControls');
+        const muteMicBtn = document.getElementById('muteMicBtn');
+        const muteSpeakerBtn = document.getElementById('muteSpeakerBtn');
+        const myAudio = new Audio();
+        myAudio.autoplay = true;
 
         let currentUser = null;
         let currentChatId = null;
         let currentChatType = null;
-        let myStatus = 'Offline';
+        let myStatus = 'Online';
         let activeMessageId = null;
         let unsubscribeMessageListener = null;
+        let unsubscribeGroupMembersListener = null;
+
+        let localStream = null;
+        const peerConnections = {};
+
+        let isMicMuted = false;
+        let isSpeakerMuted = false;
+        
+        // Funkcja do zamykania wszystkich nasłuchiwaczy przed otwarciem nowego czatu
+        function closeAllListeners() {
+            if (unsubscribeMessageListener) {
+                unsubscribeMessageListener();
+                unsubscribeMessageListener = null;
+            }
+            if (unsubscribeGroupMembersListener) {
+                unsubscribeGroupMembersListener();
+                unsubscribeGroupMembersListener = null;
+            }
+            // Zamknięcie połączeń głosowych
+            for (const peer in peerConnections) {
+                peerConnections[peer].close();
+                delete peerConnections[peer];
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+        }
 
         // ===== AUTH =====
         showRegBtn.onclick = () => { loginForm.style.display = 'none'; registerForm.style.display = 'block'; };
@@ -947,11 +1108,16 @@
             logoutBtn.style.display = 'inline-block';
             initPresence();
             startListeners();
-            const statusRef = ref(db, 'status/' + currentUser);
-            onValue(statusRef, snap => {
+            set(ref(db, 'status/' + currentUser), 'Online');
+            onDisconnect(ref(db, 'status/' + currentUser)).set('Offline');
+            
+            onValue(ref(db, 'status/' + currentUser), snap => {
                 myStatus = snap.val() || 'Offline';
                 updateStatusUI(meNickEl.textContent, myStatus);
             });
+
+            meAvatar.onclick = () => showProfile(currentUser);
+            meNickEl.onclick = () => showProfile(currentUser);
         }
         
         meNickEl.addEventListener('dblclick', () => {
@@ -1014,7 +1180,6 @@
             if (!currentUser) return;
             const onRef = ref(db, 'online/' + currentUser);
             set(onRef, true);
-            // onDisconnect(onRef).remove(); // Usunięte, bo wylogowanie obsługuje to ręcznie
             onValue(ref(db, 'online'), (snapshot) => {
                 const count = snapshot.size;
                 activeUsersCountEl.textContent = count;
@@ -1034,7 +1199,7 @@
         });
         function updateStatusUI(userNick, st) {
             const dot = document.getElementById('st_' + userNick) || statusSelected.querySelector('.status-dot');
-            const color = st === 'Online' ? 'green' : st === 'Zaraz wracam' ? 'yellow' : st === 'Nie przeszkadzać' ? 'red' : 'gray';
+            const color = st === 'Online' ? 'green' : st === 'Zaraz wracam' ? 'yellow' : st === 'Nie przeszkadzać' ? 'red' : st === 'Rozmawia' ? '#2196F3' : 'gray';
             if (dot) dot.style.background = color;
             if (document.getElementById('st_' + userNick)) {
                  document.getElementById('st_' + userNick).textContent = st;
@@ -1140,6 +1305,7 @@
                     messagesEl.innerHTML = "";
                     deleteGroupBtn.style.display = 'none';
                     membersPanel.style.display = 'none';
+                    profileModal.style.display = 'none';
                     currentChatId = null;
                 }
             }
@@ -1156,7 +1322,6 @@
             onValue(ref(db, `friendRequests/${currentUser}`), () => loadRequests());
             onValue(ref(db, `userGroups/${currentUser}`), () => loadGroups());
             
-            // Nasłuchiwanie zmian nazw grup
             onValue(ref(db, 'groups'), (snapshot) => {
                 if (snapshot.exists()) {
                     const groupsData = snapshot.val();
@@ -1170,25 +1335,11 @@
                 }
             });
 
-            // Nasłuchiwanie statusów użytkowników
             onValue(ref(db, 'status'), (snapshot) => {
                 if (snapshot.exists()) {
                     const statuses = snapshot.val();
                     updateMemberStatuses(statuses);
                 }
-            });
-
-            // Nasłuchiwanie na aktywnych użytkowników
-            onValue(ref(db, 'online'), (snapshot) => {
-                const onlineUsers = snapshot.val() || {};
-                const users = friendsListEl.querySelectorAll('.friend-item');
-                users.forEach(userItem => {
-                    const nick = userItem.querySelector('.name').textContent;
-                    const isOnline = onlineUsers[nick];
-                    if (!isOnline) {
-                         document.getElementById('st_' + nick).textContent = 'Offline';
-                    }
-                });
             });
         }
 
@@ -1255,6 +1406,11 @@
                     `;
                     item.querySelector('.dm-btn').onclick = () => openChat(nick, 'dm');
                     item.querySelector('.delete-btn').onclick = () => deleteFriend(nick);
+                    item.onclick = (e) => {
+                        if (!e.target.closest('.right-actions')) {
+                            showProfile(nick);
+                        }
+                    };
                     friendsListEl.appendChild(item);
 
                     const onRef = ref(db, 'status/' + nick);
@@ -1333,17 +1489,49 @@
             }
         }
 
+        // ===== PROFILE MODAL =====
+        async function showProfile(userNick) {
+            const userRef = ref(db, `users/${userNick}`);
+            const statusRef = ref(db, `status/${userNick}`);
+            
+            const userSnap = await get(userRef);
+            const statusSnap = await get(statusRef);
+            
+            if (userSnap.exists()) {
+                const userData = userSnap.val();
+                const status = statusSnap.val() || 'Offline';
+                
+                profileAvatar.innerHTML = `<div>${userNick.slice(0, 2).toUpperCase()}</div>`;
+                profileNick.textContent = userNick;
+                profileStatus.textContent = status;
+                
+                const joinDate = new Date(userData.createdAt).toLocaleDateString();
+                profileJoinDate.textContent = `Dołączył: ${joinDate}`;
+            }
+            profileModal.style.display = 'flex';
+        }
+
+        document.addEventListener('click', (e) => {
+            if (profileModal.style.display === 'flex' && !profileModal.contains(e.target) && !e.target.closest('.friend-item') && !e.target.closest('.member-item') && !e.target.closest('.profile')) {
+                profileModal.style.display = 'none';
+            }
+        });
+
         // ===== CHAT =====
         async function openChat(id, type) {
-            if (unsubscribeMessageListener) {
-                unsubscribeMessageListener();
-            }
+            // Zakończ wszystkie aktywne połączenia i nasłuchiwacze przed otwarciem nowego czatu
+            hangUp();
+            closeAllListeners();
 
             currentChatId = id;
             currentChatType = type;
             deleteGroupBtn.style.display = 'none';
+            profileModal.style.display = 'none';
             membersPanel.style.display = 'none';
             contextMenu.style.display = 'none';
+            voiceCallBtn.style.display = 'none';
+            hangUpBtn.style.display = 'none';
+            voiceControls.style.display = 'none';
             messagesEl.innerHTML = '<div style="color: var(--muted); text-align:center; padding-top: 20px;">Ładowanie wiadomości...</div>';
 
             if (type === 'dm') {
@@ -1358,20 +1546,46 @@
                 if (groupDataSnap.exists()) {
                     const groupData = groupDataSnap.val();
                     chatTitle.textContent = groupData.name;
-                    chatSub.textContent = `${groupData.members.length} członków: ${groupData.members.join(', ')}`;
+                    chatSub.textContent = `${groupData.members.length} członków`;
                     chatAvatar.innerHTML = `<div>#</div>`;
+                    voiceCallBtn.style.display = 'block';
                     if (groupData.owner === currentUser) {
                         deleteGroupBtn.style.display = 'block';
                     }
                     membersPanel.style.display = 'flex';
                     loadMembersPanel(groupData.members, groupData.owner);
+                    
+                    onValue(ref(db, `groups/${id}/membersSpeaking`), (snap) => {
+                        const speakingMembers = snap.val() || {};
+                        updateSpeakingIndicators(speakingMembers);
+                    });
                 }
                 chatTitle.style.cursor = 'pointer';
             }
             loadMessages();
         }
 
-        async function loadMembersPanel(members, owner) {
+        function updateSpeakingIndicators(speakingMembers) {
+            const memberItems = membersList.querySelectorAll('.member-item');
+            memberItems.forEach(item => {
+                const nameEl = item.querySelector('.name');
+                if (nameEl) {
+                    const memberNick = nameEl.textContent;
+                    const statusDot = item.querySelector('.avatar-status-dot');
+                    const isSpeaking = speakingMembers[memberNick];
+
+                    if (statusDot) {
+                        if (isSpeaking) {
+                            statusDot.classList.add('is-speaking');
+                        } else {
+                            statusDot.classList.remove('is-speaking');
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadMembersPanel(members, owner) {
             membersList.innerHTML = '';
             for (const member of members) {
                 const item = document.createElement('div');
@@ -1395,12 +1609,12 @@
                     </div>
                 `;
                 item.innerHTML = avatar + nameAndStatus;
+                item.onclick = () => showProfile(member);
                 membersList.appendChild(item);
             }
             
-            // Nasłuchiwanie statusów dla członków grupy
             const statusRef = ref(db, 'status');
-            onValue(statusRef, (snapshot) => {
+            unsubscribeGroupMembersListener = onValue(statusRef, (snapshot) => {
                 const allStatuses = snapshot.val() || {};
                 const statusesToUpdate = {};
                 members.forEach(member => {
@@ -1579,6 +1793,181 @@
             }
         });
 
+        // ===== VOICE CHAT FUNCTIONS =====
+        const PEER_CONFIG = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+
+        async function startVoiceCall() {
+            if (currentChatType !== 'group' || localStream) return;
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                await set(ref(db, `status/${currentUser}`), 'Rozmawia');
+                await set(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`), true);
+                voiceCallBtn.style.display = 'none';
+                hangUpBtn.style.display = 'block';
+                voiceControls.style.display = 'flex';
+                
+                // Add event listener for input level
+                const audioContext = new AudioContext();
+                const microphone = audioContext.createMediaStreamSource(localStream);
+                const scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
+                
+                let isSpeaking = false;
+                scriptProcessor.onaudioprocess = async (event) => {
+                    if (isMicMuted) return;
+                    const input = event.inputBuffer.getChannelData(0);
+                    let sum = 0;
+                    for (let i = 0; i < input.length; i++) {
+                        sum += input[i] * input[i];
+                    }
+                    const rms = Math.sqrt(sum / input.length);
+
+                    if (rms > 0.05 && !isSpeaking) {
+                        isSpeaking = true;
+                        await set(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`), true);
+                    } else if (rms < 0.02 && isSpeaking) {
+                        isSpeaking = false;
+                        await set(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`), false);
+                    }
+                };
+                microphone.connect(scriptProcessor);
+                scriptProcessor.connect(audioContext.destination);
+
+                const groupMembersSnap = await get(ref(db, `groups/${currentChatId}/members`));
+                const members = groupMembersSnap.val();
+
+                for (const member of members) {
+                    if (member !== currentUser) {
+                        await createPeerConnection(member);
+                    }
+                }
+            } catch (error) {
+                console.error("Błąd dostępu do mikrofonu:", error);
+                alert("Brak dostępu do mikrofonu. Upewnij się, że zezwoliłeś na jego użycie.");
+                hangUp();
+            }
+        }
+
+        async function createPeerConnection(remoteUser) {
+            const pc = new RTCPeerConnection(PEER_CONFIG);
+            peerConnections[remoteUser] = pc;
+
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    set(ref(db, `voiceSignals/${remoteUser}/${currentUser}/candidate`), event.candidate.toJSON());
+                }
+            };
+
+            pc.ontrack = (event) => {
+                const audio = document.createElement('audio');
+                audio.srcObject = event.streams[0];
+                audio.autoplay = true;
+                audio.setAttribute('data-peer-audio', remoteUser);
+                document.body.appendChild(audio);
+            };
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            set(ref(db, `voiceSignals/${remoteUser}/${currentUser}/offer`), offer.toJSON());
+        }
+
+        onValue(ref(db, `voiceSignals/${currentUser}`), async (snapshot) => {
+            const signals = snapshot.val();
+            if (!signals) return;
+
+            for (const sender in signals) {
+                const signal = signals[sender];
+                
+                if (!peerConnections[sender]) {
+                    const pc = new RTCPeerConnection(PEER_CONFIG);
+                    peerConnections[sender] = pc;
+
+                    pc.ontrack = (event) => {
+                        const audio = document.createElement('audio');
+                        audio.srcObject = event.streams[0];
+                        audio.autoplay = true;
+                        audio.setAttribute('data-peer-audio', sender);
+                        document.body.appendChild(audio);
+                    };
+
+                    pc.onicecandidate = (event) => {
+                        if (event.candidate) {
+                            set(ref(db, `voiceSignals/${sender}/${currentUser}/candidate`), event.candidate.toJSON());
+                        }
+                    };
+                }
+
+                if (signal.offer) {
+                    await peerConnections[sender].setRemoteDescription(new RTCSessionDescription(signal.offer));
+                    const answer = await peerConnections[sender].createAnswer();
+                    await peerConnections[sender].setLocalDescription(answer);
+                    set(ref(db, `voiceSignals/${sender}/${currentUser}/answer`), answer.toJSON());
+                    set(ref(db, `voiceSignals/${currentUser}/${sender}`), null);
+                } else if (signal.answer) {
+                    await peerConnections[sender].setRemoteDescription(new RTCSessionDescription(signal.answer));
+                } else if (signal.candidate) {
+                    try {
+                        await peerConnections[sender].addIceCandidate(new RTCIceCandidate(signal.candidate));
+                    } catch (e) {
+                        console.error("Error adding received ICE candidate", e);
+                    }
+                }
+            }
+        });
+
+        function hangUp() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+
+            for (const peer in peerConnections) {
+                if (peerConnections[peer]) {
+                    peerConnections[peer].close();
+                }
+                delete peerConnections[peer];
+            }
+            
+            const audios = document.querySelectorAll('audio[data-peer-audio]');
+            audios.forEach(audio => audio.remove());
+
+            if (currentChatId) {
+                remove(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`));
+            }
+            
+            set(ref(db, `status/${currentUser}`), myStatus);
+            voiceCallBtn.style.display = 'block';
+            hangUpBtn.style.display = 'none';
+            voiceControls.style.display = 'none';
+        }
+        
+        muteMicBtn.onclick = () => {
+            isMicMuted = !isMicMuted;
+            const micTrack = localStream.getAudioTracks()[0];
+            if (micTrack) {
+                micTrack.enabled = !isMicMuted;
+                muteMicBtn.textContent = isMicMuted ? '🔇' : '🎤';
+            }
+            set(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`), !isMicMuted);
+        };
+        
+        muteSpeakerBtn.onclick = () => {
+            isSpeakerMuted = !isSpeakerMuted;
+            const audios = document.querySelectorAll('audio[data-peer-audio]');
+            audios.forEach(audio => {
+                audio.volume = isSpeakerMuted ? 0 : 1;
+            });
+            muteSpeakerBtn.textContent = isSpeakerMuted ? '🔇' : '🔊';
+        };
+
+        voiceCallBtn.onclick = startVoiceCall;
+        hangUpBtn.onclick = hangUp;
+        
+        // Finalne sprawdzenie statusu logowania
         const loggedInUser = localStorage.getItem('currentUser');
         if (loggedInUser) {
             loginAs(loggedInUser);
