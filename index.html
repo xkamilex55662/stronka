@@ -3,359 +3,607 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Czat Globalny - Rejestracja na nick + hasło</title>
+<title>Zaawansowany Czat Globalny</title>
 <style>
-  body {
-    margin: 0;
-    padding: 0;
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    color: white;
-    font-family: Arial, sans-serif;
-    text-align: center;
+  /* Reset i podstawy */
+  * {
+    box-sizing: border-box;
   }
-  #chatBox {
-    width: 400px;
-    height: 300px;
-    border: 1px solid #444;
-    margin: 20px auto;
+  body {
+    margin: 0; padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+    color: #eee;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    background: rgba(0,0,0,0.7);
+    padding: 15px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    user-select: none;
+  }
+
+  main {
+    flex: 1;
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+  }
+
+  /* Sidebar z użytkownikami online */
+  #usersOnline {
+    width: 220px;
     background: rgba(0,0,0,0.6);
+    border-radius: 8px;
     padding: 10px;
     overflow-y: auto;
-    text-align: left;
-    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
   }
-  #msgInput {
-    width: 320px;
-    padding: 5px;
-    margin-top: 5px;
-    background: #333;
-    color: white;
-    border: 1px solid #444;
-    border-radius: 4px;
+  #usersOnline h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 20px;
+    text-align: center;
   }
-  #sendBtn {
-    padding: 6px 12px;
+  #usersList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex: 1;
+  }
+  #usersList li {
+    padding: 6px 10px;
+    margin-bottom: 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.1);
+    transition: background-color 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #usersList li:hover {
+    background: rgba(255,255,255,0.25);
+  }
+  #usersList li.selected {
     background: #28a745;
     color: white;
+    font-weight: bold;
+  }
+
+  /* Sekcja czatu */
+  #chatSection {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: rgba(0,0,0,0.7);
+    border-radius: 8px;
+    padding: 10px;
+  }
+
+  #chatBox {
+    flex: 1;
+    overflow-y: auto;
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: #111;
+    font-size: 14px;
+  }
+
+  /* Wiadomości */
+  .message {
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    max-width: 80%;
+    word-wrap: break-word;
+    position: relative;
+  }
+  .message.public {
+    background: rgba(40,167,69,0.8);
+    color: #e0f7e9;
+  }
+  .message.private {
+    background: rgba(255,193,7,0.85);
+    color: #4a3b00;
+  }
+  .message.admin {
+    border: 2px solid #dc3545;
+  }
+  .message .meta {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-bottom: 3px;
+  }
+  .message .text {
+    white-space: pre-wrap;
+  }
+  .message .deleteBtn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: #dc3545;
     border: none;
+    color: white;
+    font-weight: bold;
+    border-radius: 3px;
     cursor: pointer;
-    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 12px;
+    display: none;
+  }
+  .message.admin .deleteBtn {
+    display: block;
+  }
+
+  /* Formularz wysyłania */
+  #sendForm {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+  }
+  #msgInput {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: none;
+  }
+  #sendBtn {
+    background: #28a745;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
   }
   #sendBtn:hover {
     background: #218838;
   }
-  #authContainer {
-    margin-top: 20px;
-  }
-  input[type="text"], input[type="password"] {
-    padding: 8px;
-    font-size: 14px;
-    margin: 5px;
-    border-radius: 4px;
-    border: none;
-    width: 150px;
-  }
-  button {
-    cursor: pointer;
-  }
-  #errorMsg {
-    color: #f44336;
-    font-weight: bold;
-    margin-top: 10px;
-  }
-  .message {
+
+  /* Panel logowania/rejestracji */
+  #authPanel {
+    position: fixed;
+    top:0; left:0; right:0; bottom:0;
+    background: rgba(0,0,0,0.85);
     display: flex;
-    justify-content: space-between;
-    margin: 4px 0;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
   }
-  .msg-text {
-    flex: 1;
+  #authPanel form {
+    background: #222;
+    padding: 20px 25px;
+    border-radius: 12px;
+    min-width: 320px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.7);
   }
-  .msg-time {
-    color: #aaa;
-    font-size: 12px;
-    margin-left: 10px;
-    white-space: nowrap;
+  #authPanel h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #28a745;
+    text-align: center;
   }
-  .deleteBtn {
-    background: #d9534f;
+  #authPanel label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+  }
+  #authPanel input {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+    border: none;
+    font-size: 14px;
+  }
+  #authPanel button {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    background: #28a745;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  #authPanel button:hover {
+    background: #218838;
+  }
+  #authSwitch {
+    margin-top: 10px;
+    text-align: center;
+    color: #bbb;
+    cursor: pointer;
+    user-select: none;
+  }
+  #authError {
+    color: #dc3545;
+    margin-bottom: 10px;
+    font-weight: bold;
+    min-height: 20px;
+  }
+
+  /* Wyświetlanie info o aktualnym userze */
+  #userInfo {
+    text-align: right;
+    padding: 10px 15px;
+    font-weight: bold;
+    background: rgba(0,0,0,0.6);
+  }
+  #logoutBtn {
+    background: #dc3545;
     border: none;
     color: white;
-    border-radius: 4px;
+    padding: 5px 10px;
+    border-radius: 6px;
     cursor: pointer;
-    margin-left: 10px;
-    padding: 2px 6px;
-    font-size: 12px;
+    margin-left: 15px;
   }
-  #userInfo {
-    margin-top: 10px;
+  #logoutBtn:hover {
+    background: #b02a37;
+  }
+
+  /* Responsywność */
+  @media(max-width: 600px) {
+    main {
+      flex-direction: column;
+    }
+    #usersOnline {
+      width: 100%;
+      max-height: 150px;
+      order: 2;
+    }
+    #chatSection {
+      order: 1;
+      height: 400px;
+    }
   }
 </style>
 </head>
 <body>
 
-<h2>💬 Czat Globalny</h2>
-<h4>Online: <span id="userCount">0</span></h4>
+<header>💬 Zaawansowany Czat Globalny</header>
 
-<div id="chatBox"></div>
-
-<div id="sendContainer" style="display:none;">
-  <input type="text" id="msgInput" placeholder="Napisz wiadomość..." />
-  <button id="sendBtn">Wyślij</button>
+<div id="authPanel">
+  <form id="authForm">
+    <h2 id="authTitle">Logowanie</h2>
+    <div id="authError"></div>
+    <label for="nickInput">Nick</label>
+    <input type="text" id="nickInput" autocomplete="off" required minlength="3" maxlength="20" />
+    <label for="passInput">Hasło</label>
+    <input type="password" id="passInput" required minlength="6" maxlength="30" autocomplete="off" />
+    <button type="submit" id="authSubmit">Zaloguj się</button>
+    <div id="authSwitch">Nie masz konta? <strong>Zarejestruj się</strong></div>
+  </form>
 </div>
 
-<div id="authContainer">
-  <h3>Rejestracja</h3>
-  <input type="text" id="regNick" placeholder="Nick" />
-  <input type="password" id="regPass" placeholder="Hasło" />
-  <button id="registerBtn">Zarejestruj się</button>
+<main style="display:none;">
+  <aside id="usersOnline">
+    <h3>Użytkownicy Online</h3>
+    <ul id="usersList"></ul>
+  </aside>
 
-  <h3>Logowanie</h3>
-  <input type="text" id="loginNick" placeholder="Nick" />
-  <input type="password" id="loginPass" placeholder="Hasło" />
-  <button id="loginBtn">Zaloguj się</button>
+  <section id="chatSection">
+    <div id="userInfo">
+      <span id="currentUserNick"></span> (<span id="currentUserRole">Użytkownik</span>)
+      <button id="logoutBtn">Wyloguj</button>
+    </div>
 
-  <div id="errorMsg"></div>
-</div>
+    <div id="chatBox" aria-live="polite" aria-label="Okno czatu"></div>
 
-<div id="userInfo" style="display:none;">
-  Zalogowano jako: <span id="currentUserNick"></span>
-  <button id="logoutBtn">Wyloguj się</button>
-</div>
+    <form id="sendForm" autocomplete="off">
+      <input type="text" id="msgInput" placeholder="Napisz wiadomość..." autocomplete="off" />
+      <button type="submit" id="sendBtn">Wyślij</button>
+    </form>
+  </section>
+</main>
 
-<!-- Firebase SDK -->
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getDatabase, ref, set, get, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, set, remove, onDisconnect, get, child } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
-// Konfiguracja Firebase - zastąp swoimi danymi
-const firebaseConfig = {
-  apiKey: "AIzaSyBWtZUr7xoa31uoH18hksqSjCXMd2F18Ew",
-  authDomain: "strona-f0d19.firebaseapp.com",
-  databaseURL: "https://strona-f0d19-default-rtdb.firebaseio.com",
-  projectId: "strona-f0d19",
-  storageBucket: "strona-f0d19.firebasestorage.app",
-  messagingSenderId: "34203329400",
-  appId: "1:34203329400:web:c934bf311237b1a6701e8d",
-  measurementId: "G-HYCP5F1J3E"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-const regNick = document.getElementById('regNick');
-const regPass = document.getElementById('regPass');
-const registerBtn = document.getElementById('registerBtn');
-
-const loginNick = document.getElementById('loginNick');
-const loginPass = document.getElementById('loginPass');
-const loginBtn = document.getElementById('loginBtn');
-
-const errorMsg = document.getElementById('errorMsg');
-
-const chatBox = document.getElementById('chatBox');
-const msgInput = document.getElementById('msgInput');
-const sendBtn = document.getElementById('sendBtn');
-const sendContainer = document.getElementById('sendContainer');
-
-const authContainer = document.getElementById('authContainer');
-const userInfo = document.getElementById('userInfo');
-const currentUserNickSpan = document.getElementById('currentUserNick');
-const logoutBtn = document.getElementById('logoutBtn');
-
-const userCountSpan = document.getElementById('userCount');
-
-let currentUser = null; // Obiekt: {nick, isAdmin}
-let onlineUsers = {};
-
-function hashPassword(pass) {
-  // Prosty hash - dla demo! W produkcji użyj lepszego (np. bcrypt server-side)
-  let hash = 0, i, chr;
-  for (i = 0; i < pass.length; i++) {
-    chr = pass.charCodeAt(i);
-    hash = ((hash << 5) - hash) + chr;
-    hash |= 0;
-  }
-  return hash.toString();
-}
-
-// Rejestracja
-registerBtn.addEventListener('click', async () => {
-  const nick = regNick.value.trim();
-  const pass = regPass.value.trim();
-  errorMsg.textContent = '';
-
-  if (!nick || !pass) {
-    errorMsg.textContent = 'Wypełnij nick i hasło!';
-    return;
-  }
-  if (nick.length < 3) {
-    errorMsg.textContent = 'Nick musi mieć minimum 3 znaki!';
-    return;
-  }
-
-  // Sprawdź czy nick jest wolny
-  const userRef = ref(db, 'users/' + nick);
-  const snapshot = await get(userRef);
-  if (snapshot.exists()) {
-    errorMsg.textContent = 'Ten nick jest już zajęty!';
-    return;
-  }
-
-  // Zapisz użytkownika
-  await set(userRef, {
-    passwordHash: hashPassword(pass),
-    isAdmin: false
-  });
-
-  errorMsg.style.color = 'lime';
-  errorMsg.textContent = 'Zarejestrowano! Teraz się zaloguj.';
-  regNick.value = '';
-  regPass.value = '';
-});
-
-// Logowanie
-loginBtn.addEventListener('click', async () => {
-  const nick = loginNick.value.trim();
-  const pass = loginPass.value.trim();
-  errorMsg.style.color = 'red';
-  errorMsg.textContent = '';
-
-  if (!nick || !pass) {
-    errorMsg.textContent = 'Wypełnij nick i hasło!';
-    return;
-  }
-
-  const userRef = ref(db, 'users/' + nick);
-  const snapshot = await get(userRef);
-  if (!snapshot.exists()) {
-    errorMsg.textContent = 'Nie ma takiego użytkownika!';
-    return;
-  }
-  const data = snapshot.val();
-  if (data.passwordHash !== hashPassword(pass)) {
-    errorMsg.textContent = 'Niepoprawne hasło!';
-    return;
-  }
-
-  // Zalogowano
-  currentUser = {
-    nick: nick,
-    isAdmin: data.isAdmin || false
+  // Firebase config — zastąp swoimi danymi!
+  const firebaseConfig = {
+    apiKey: "AIzaSyBWtZUr7xoa31uoH18hksqSjCXMd2F18Ew",
+    authDomain: "strona-f0d19.firebaseapp.com",
+    databaseURL: "https://strona-f0d19-default-rtdb.firebaseio.com",
+    projectId: "strona-f0d19",
+    storageBucket: "strona-f0d19.appspot.com",
+    messagingSenderId: "34203329400",
+    appId: "1:34203329400:web:c934bf311b1a6701e8d",
+    measurementId: "G-HYCP5F1J3E"
   };
-  errorMsg.textContent = '';
-  authContainer.style.display = 'none';
-  userInfo.style.display = 'block';
-  currentUserNickSpan.textContent = nick;
-  sendContainer.style.display = 'block';
 
-  // Dodaj do online
-  const onlineRef = ref(db, 'online/' + nick);
-  set(onlineRef, true);
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-  // Usuń przy wylogowaniu lub zamknięciu
-  window.addEventListener('beforeunload', () => {
-    remove(onlineRef);
-  });
+  // Pomocnik hashujący SHA-256 (prosty)
+  async function hashPassword(pass) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(pass);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
 
-  loadMessages();
-  loadOnlineUsers();
-});
+  // UI elementy
+  const authPanel = document.getElementById('authPanel');
+  const authForm = document.getElementById('authForm');
+  const authTitle = document.getElementById('authTitle');
+  const authError = document.getElementById('authError');
+  const authSwitch = document.getElementById('authSwitch');
+  const nickInput = document.getElementById('nickInput');
+  const passInput = document.getElementById('passInput');
 
-// Wyloguj się
-logoutBtn.addEventListener('click', () => {
-  if (!currentUser) return;
-  const onlineRef = ref(db, 'online/' + currentUser.nick);
-  remove(onlineRef);
-  currentUser = null;
-  authContainer.style.display = 'block';
-  userInfo.style.display = 'none';
-  sendContainer.style.display = 'none';
-  chatBox.innerHTML = '';
-  userCountSpan.textContent = '0';
-  errorMsg.textContent = '';
-});
+  const mainContent = document.querySelector('main');
+  const usersListEl = document.getElementById('usersList');
+  const chatBox = document.getElementById('chatBox');
+  const msgInput = document.getElementById('msgInput');
+  const sendForm = document.getElementById('sendForm');
+  const currentUserNickEl = document.getElementById('currentUserNick');
+  const currentUserRoleEl = document.getElementById('currentUserRole');
+  const logoutBtn = document.getElementById('logoutBtn');
 
-// Wysyłanie wiadomości
-sendBtn.addEventListener('click', () => {
-  if (!currentUser) return;
-  const text = msgInput.value.trim();
-  if (!text) return;
+  let currentUser = null;  // {nick, isAdmin}
+  let selectedUser = null; // nick wybranego użytkownika do wiadomości prywatnej (null = publiczne)
+  let isRegisterMode = false;
 
-  const messagesRef = ref(db, 'messages');
-  push(messagesRef, {
-    user: currentUser.nick,
-    text: text,
-    timestamp: Date.now()
-  });
-  msgInput.value = '';
-});
+  // Format daty i godziny
+  function formatDate(ts) {
+    const d = new Date(ts);
+    return d.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour:'2-digit', minute:'2-digit' });
+  }
 
-// Ładowanie wiadomości i wyświetlanie z możliwością usuwania dla admina
-function loadMessages() {
-  const messagesRef = ref(db, 'messages');
-  onValue(messagesRef, (snapshot) => {
+  // Pokazuje wiadomości (publiczne i prywatne z wybranym userem)
+  function renderMessages(messagesSnapshot, privateMessagesSnapshot = null) {
     chatBox.innerHTML = '';
-    snapshot.forEach((msgSnap) => {
-      const msg = msgSnap.val();
-      const key = msgSnap.key;
-      const time = formatDate(msg.timestamp);
-      const messageDiv = document.createElement('div');
-      messageDiv.className = 'message';
 
-      const textDiv = document.createElement('div');
-      textDiv.className = 'msg-text';
-      textDiv.innerHTML = `<b>${escapeHtml(msg.user)}:</b> ${escapeHtml(msg.text)}`;
-      messageDiv.appendChild(textDiv);
+    // Pomoc do utworzenia div wiadomości
+    function createMessageDiv(key, msg) {
+      const div = document.createElement('div');
+      div.classList.add('message');
 
-      const timeDiv = document.createElement('div');
-      timeDiv.className = 'msg-time';
-      timeDiv.textContent = time;
-      messageDiv.appendChild(timeDiv);
+      // Typ wiadomości
+      if(msg.to) div.classList.add('private');
+      else div.classList.add('public');
 
-      if(currentUser && currentUser.isAdmin) {
+      // Zaznaczenie admina
+      if(currentUser.isAdmin) div.classList.add('admin');
+
+      // Tekst
+      div.innerHTML = `
+        <div class="meta"><b>${msg.user}</b> ${msg.to ? `→ <b>${msg.to}</b>` : ''} <span> - ${formatDate(msg.timestamp)}</span></div>
+        <div class="text">${escapeHtml(msg.text)}</div>
+      `;
+
+      // Przycisk usuwania dla admina
+      if(currentUser.isAdmin) {
         const delBtn = document.createElement('button');
         delBtn.className = 'deleteBtn';
         delBtn.textContent = 'Usuń';
-        delBtn.addEventListener('click', () => {
+        delBtn.addEventListener('click', async () => {
           if(confirm('Na pewno usunąć tę wiadomość?')) {
-            remove(ref(db, 'messages/' + key));
+            await remove(ref(db, 'messages/' + key));
           }
         });
-        messageDiv.appendChild(delBtn);
+        div.appendChild(delBtn);
       }
+      return div;
+    }
 
-      chatBox.appendChild(messageDiv);
+    // Pokaż publiczne wiadomości
+    messagesSnapshot.forEach(msgSnap => {
+      const key = msgSnap.key;
+      const msg = msgSnap.val();
+
+      // Jeśli to wiadomość prywatna, ignoruj tutaj
+      if(msg.to) return;
+
+      chatBox.appendChild(createMessageDiv(key, msg));
     });
-    chatBox.scrollTop = chatBox.scrollHeight;
-  });
-}
 
-// Ładowanie liczby online
-function loadOnlineUsers() {
+    // Jeśli jest wybrany user do prywatnych wiadomości, pokazujemy wiadomości prywatne
+    if(selectedUser && selectedUser !== currentUser.nick) {
+      if(privateMessagesSnapshot) {
+        privateMessagesSnapshot.forEach(msgSnap => {
+          const key = msgSnap.key;
+          const msg = msgSnap.val();
+          chatBox.appendChild(createMessageDiv(key, msg));
+        });
+      }
+    }
+
+    // Scrolluj na dół
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  // Escape HTML dla bezpieczeństwa
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Pobierz wiadomości publiczne
+  const messagesRef = ref(db, 'messages');
+  onValue(messagesRef, (snapshot) => {
+    if(!currentUser) return;
+    if(!selectedUser || selectedUser === currentUser.nick) {
+      // Pokaz publiczne wiadomości
+      renderMessages(snapshot);
+    }
+  });
+
+  // Pobierz użytkowników online i wyświetl
   const onlineRef = ref(db, 'online');
   onValue(onlineRef, (snapshot) => {
-    userCountSpan.textContent = snapshot.size;
+    usersListEl.innerHTML = '';
+    snapshot.forEach(userSnap => {
+      const nick = userSnap.key;
+      if(nick === currentUser?.nick) return; // nie pokazuj siebie na liście
+      const li = document.createElement('li');
+      li.textContent = nick;
+      if(selectedUser === nick) li.classList.add('selected');
+      li.title = "Kliknij, by wysłać prywatną wiadomość";
+      li.addEventListener('click', () => {
+        if(selectedUser === nick) {
+          // klik na wybranego użytkownika - odznacz
+          selectedUser = null;
+        } else {
+          selectedUser = nick;
+        }
+        renderChat();
+      });
+      usersListEl.appendChild(li);
+    });
   });
-}
 
-// Formatowanie daty i godziny
-function formatDate(timestamp) {
-  if (!timestamp) return '';
-  const d = new Date(timestamp);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  const time = d.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
-  return `${day}.${month}.${year} ${time}`;
-}
+  // Zaznaczanie, czy pokazujemy czat publiczny czy prywatny
+  function renderChat() {
+    if(!currentUser) return;
+    if(!selectedUser || selectedUser === currentUser.nick) {
+      // publiczny czat
+      currentUserRoleEl.textContent = currentUser.isAdmin ? 'Admin (publiczny czat)' : 'Użytkownik (publiczny czat)';
+      // Pobierz publiczne wiadomości
+      get(messagesRef).then(snap => renderMessages(snap));
+    } else {
+      // prywatny czat z selectedUser
+      currentUserRoleEl.textContent = currentUser.isAdmin ? `Admin (DM: ${selectedUser})` : `Użytkownik (DM: ${selectedUser})`;
 
-// Proste zabezpieczenie przed XSS
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
+      // Klucz prywatnej konwersacji - uporządkowany aby było spójne:
+      const sortedPair = [currentUser.nick, selectedUser].sort();
+      const privatePath = `messages_private/${sortedPair[0]}_${sortedPair[1]}`;
+      const privateRef = ref(db, privatePath);
+      onValue(privateRef, snap => {
+        renderMessages({forEach: (cb) => snap.forEach(cb)}, snap);
+      });
+    }
+  }
+
+  // Po zalogowaniu pokaż UI czatu
+  function afterLogin() {
+    authPanel.style.display = 'none';
+    mainContent.style.display = 'flex';
+    currentUserNickEl.textContent = currentUser.nick;
+    renderChat();
+
+    // Dodaj użytkownika do online i usuń przy wyjściu
+    const userOnlineRef = ref(db, 'online/' + currentUser.nick);
+    set(userOnlineRef, true);
+    onDisconnect(userOnlineRef).remove();
+  }
+
+  // Logowanie lub rejestracja
+  authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    authError.textContent = '';
+
+    const nick = nickInput.value.trim();
+    const pass = passInput.value;
+
+    if(nick.length < 3 || pass.length < 6) {
+      authError.textContent = 'Nick musi mieć min. 3 znaki, hasło min. 6 znaków.';
+      return;
+    }
+
+    const userRef = ref(db, 'users/' + nick);
+    const snapshot = await get(userRef);
+
+    if(isRegisterMode) {
+      // Rejestracja
+      if(snapshot.exists()) {
+        authError.textContent = 'Ten nick jest już zajęty.';
+        return;
+      }
+      // Zarejestruj użytkownika
+      const hashed = await hashPassword(pass);
+      await set(userRef, { passwordHash: hashed, isAdmin: false });
+      currentUser = { nick, isAdmin: false };
+      afterLogin();
+    } else {
+      // Logowanie
+      if(!snapshot.exists()) {
+        authError.textContent = 'Nie znaleziono takiego nicku.';
+        return;
+      }
+      const data = snapshot.val();
+      const hashed = await hashPassword(pass);
+      if(hashed !== data.passwordHash) {
+        authError.textContent = 'Niepoprawne hasło.';
+        return;
+      }
+      currentUser = { nick, isAdmin: data.isAdmin || false };
+      afterLogin();
+    }
+  });
+
+  // Przełącznik między logowaniem a rejestracją
+  authSwitch.addEventListener('click', () => {
+    isRegisterMode = !isRegisterMode;
+    authTitle.textContent = isRegisterMode ? 'Rejestracja' : 'Logowanie';
+    authSubmit.textContent = isRegisterMode ? 'Zarejestruj się' : 'Zaloguj się';
+    authError.textContent = '';
+    authSwitch.innerHTML = isRegisterMode ?
+      'Masz konto? <strong>Zaloguj się</strong>' :
+      'Nie masz konta? <strong>Zarejestruj się</strong>';
+  });
+
+  // Wylogowanie
+  logoutBtn.addEventListener('click', () => {
+    // Usuń z online
+    if(currentUser) {
+      remove(ref(db, 'online/' + currentUser.nick));
+    }
+    currentUser = null;
+    selectedUser = null;
+    mainContent.style.display = 'none';
+    authPanel.style.display = 'flex';
+    authForm.reset();
+  });
+
+  // Wysyłanie wiadomości (publiczne lub prywatne)
+  sendForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if(!currentUser) return;
+    let text = msgInput.value.trim();
+    if(text.length === 0) return;
+
+    // Sanityzacja tekstu (prosta)
+    text = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const timestamp = Date.now();
+
+    if(selectedUser && selectedUser !== currentUser.nick) {
+      // Wiadomość prywatna
+      const sortedPair = [currentUser.nick, selectedUser].sort();
+      const privatePath = `messages_private/${sortedPair[0]}_${sortedPair[1]}`;
+      await push(ref(db, privatePath), {
+        user: currentUser.nick,
+        to: selectedUser,
+        text,
+        timestamp
+      });
+    } else {
+      // Wiadomość publiczna
+      await push(ref(db, 'messages'), {
+        user: currentUser.nick,
+        text,
+        timestamp
+      });
+    }
+    msgInput.value = '';
+  });
 
 </script>
 </body>
