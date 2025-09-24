@@ -411,34 +411,6 @@
             display: flex;
             gap: 10px;
         }
-
-        .voice-action-btn {
-            background: var(--accent);
-            color: white;
-            font-size: 20px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .voice-action-btn:hover {
-            background: #4a6ceb;
-            transform: translateY(-1px);
-        }
-
-        .voice-call-btn, .hang-up-btn {
-            background: var(--accent);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            display: none;
-        }
         
         .delete-group-btn {
             background: #f44336;
@@ -447,39 +419,6 @@
 
         .voice-call-btn:hover, .hang-up-btn:hover, .delete-group-btn:hover {
             transform: translateY(-1px);
-        }
-
-        .voice-call-btn.active {
-            background: var(--green);
-        }
-
-        .hang-up-btn.active {
-            background: var(--red);
-        }
-        
-        .voice-controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-right: 10px;
-        }
-
-        .speaking-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background-color: var(--muted);
-            animation: none;
-        }
-        .is-speaking {
-            background-color: var(--speaking);
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
         }
 
         .messages {
@@ -822,6 +761,10 @@
             color: gold;
             margin-left: 8px;
         }
+        .admin-badge {
+            color: #7289da;
+            margin-left: 8px;
+        }
 
         /* Responsywność */
         @media (max-width: 768px) {
@@ -912,12 +855,6 @@
                     <div class="chat-sub" id="chatSub">Prywatna rozmowa</div>
                 </div>
                 <div class="chat-actions">
-                    <div class="voice-controls" id="voiceControls" style="display:none">
-                        <button class="voice-action-btn" id="muteMicBtn">🎤</button>
-                        <button class="voice-action-btn" id="muteSpeakerBtn">🔊</button>
-                    </div>
-                    <button id="voiceCallBtn" class="voice-call-btn" style="display:none;">📞 Zadzwoń</button>
-                    <button id="hangUpBtn" class="hang-up-btn" style="display:none;">📞 Rozłącz</button>
                     <button id="deleteGroupBtn" class="delete-group-btn" style="display:none;">Usuń grupę</button>
                 </div>
             </div>
@@ -985,7 +922,9 @@
     </div>
 
     <div id="memberContextMenu" class="context-menu">
-        <div class="context-menu-item kick" id="kickMemberItem">Wyrzuć z grupy</div>
+        <div class="context-menu-item" id="kickMemberItem">Wyrzuć z grupy</div>
+        <div class="context-menu-item" id="setAdminItem">Ustaw jako admina</div>
+        <div class="context-menu-item" id="removeAdminItem">Usuń jako admina</div>
     </div>
 
     <div id="addMembersModal" class="add-members-modal">
@@ -1069,15 +1008,8 @@
         const cancelAddMembersBtn = document.getElementById('cancelAddMembersBtn');
         const memberContextMenu = document.getElementById('memberContextMenu');
         const kickMemberItem = document.getElementById('kickMemberItem');
-
-        // ===== VOICE CHAT DOM ELEMENTS =====
-        const voiceCallBtn = document.getElementById('voiceCallBtn');
-        const hangUpBtn = document.getElementById('hangUpBtn');
-        const voiceControls = document.getElementById('voiceControls');
-        const muteMicBtn = document.getElementById('muteMicBtn');
-        const muteSpeakerBtn = document.getElementById('muteSpeakerBtn');
-        const myAudio = new Audio();
-        myAudio.autoplay = true;
+        const setAdminItem = document.getElementById('setAdminItem');
+        const removeAdminItem = document.getElementById('removeAdminItem');
 
         let currentUser = null;
         let currentChatId = null;
@@ -1087,13 +1019,9 @@
         let activeMemberProfile = null;
         let unsubscribeMessageListener = null;
         let unsubscribeGroupMembersListener = null;
+        let groupOwner = null;
+        let groupAdmins = [];
 
-        let localStream = null;
-        const peerConnections = {};
-
-        let isMicMuted = false;
-        let isSpeakerMuted = false;
-        
         // Funkcja do zamykania wszystkich nasłuchiwaczy przed otwarciem nowego czatu
         function closeAllListeners() {
             if (unsubscribeMessageListener) {
@@ -1103,15 +1031,6 @@
             if (unsubscribeGroupMembersListener) {
                 unsubscribeGroupMembersListener();
                 unsubscribeGroupMembersListener = null;
-            }
-            // Zamknięcie połączeń głosowych
-            for (const peer in peerConnections) {
-                peerConnections[peer].close();
-                delete peerConnections[peer];
-            }
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
             }
         }
 
@@ -1241,7 +1160,7 @@
         });
         function updateStatusUI(userNick, st) {
             const dot = document.getElementById('st_' + userNick) || statusSelected.querySelector('.status-dot');
-            const color = st === 'Online' ? 'green' : st === 'Zaraz wracam' ? 'yellow' : st === 'Nie przeszkadzać' ? 'red' : st === 'Rozmawia' ? '#2196F3' : 'gray';
+            const color = st === 'Online' ? 'green' : st === 'Zaraz wracam' ? 'yellow' : st === 'Nie przeszkadzać' ? 'red' : 'gray';
             if (dot) dot.style.background = color;
             if (document.getElementById('st_' + userNick)) {
                  document.getElementById('st_' + userNick).textContent = st;
@@ -1306,6 +1225,7 @@
                 name: groupName,
                 members: members,
                 owner: currentUser,
+                admins: [],
                 createdAt: Date.now()
             };
             await set(ref(db, `groups/${groupKey}`), groupData);
@@ -1408,21 +1328,13 @@
                         case 'Nie przeszkadzać':
                             color = 'red';
                             break;
-                        case 'W grze':
-                             color = '#5c6bc0';
-                             badge = `👾 W grze <span class="status-badge">Gra</span>`;
-                             break;
-                        case 'Rozmawia':
-                             color = '#2196F3';
-                             badge = `🎤 Rozmawia <span class="status-badge">Rozmowa</span>`;
-                             break;
                         default:
                             color = 'gray';
                     }
 
                     if (dot) dot.style.backgroundColor = color;
                     if (statusTextEl) {
-                        statusTextEl.innerHTML = badge || statusText;
+                        statusTextEl.innerHTML = statusText;
                     }
                 }
             });
@@ -1566,8 +1478,6 @@
 
         // ===== CHAT =====
         async function openChat(id, type) {
-            // Zakończ wszystkie aktywne połączenia i nasłuchiwacze przed otwarciem nowego czatu
-            hangUp();
             closeAllListeners();
 
             currentChatId = id;
@@ -1575,12 +1485,9 @@
             deleteGroupBtn.style.display = 'none';
             addMembersBtn.style.display = 'none';
             profileModal.style.display = 'none';
-            membersPanel.style.display = 'none';
+            membersPanel.style.display = 'flex';
             contextMenu.style.display = 'none';
             memberContextMenu.style.display = 'none';
-            voiceCallBtn.style.display = 'none';
-            hangUpBtn.style.display = 'none';
-            voiceControls.style.display = 'none';
             messagesEl.innerHTML = '<div style="color: var(--muted); text-align:center; padding-top: 20px;">Ładowanie wiadomości...</div>';
 
             if (type === 'dm') {
@@ -1589,6 +1496,7 @@
                 const avatarHtml = `<div>${id.slice(0, 2).toUpperCase()}</div>`;
                 chatAvatar.innerHTML = avatarHtml;
                 chatTitle.style.cursor = 'default';
+                loadDMMembers(id);
             } else {
                 const groupRef = ref(db, `groups/${id}`);
                 const groupDataSnap = await get(groupRef);
@@ -1597,50 +1505,74 @@
                     chatTitle.textContent = groupData.name;
                     chatSub.textContent = `${groupData.members.length} członków`;
                     chatAvatar.innerHTML = `<div>#</div>`;
-                    voiceCallBtn.style.display = 'block';
-                    if (groupData.owner === currentUser) {
-                        deleteGroupBtn.style.display = 'block';
-                        addMembersBtn.style.display = 'block';
-                    }
-                    membersPanel.style.display = 'flex';
-                    loadMembersPanel(groupData.members, groupData.owner);
                     
-                    onValue(ref(db, `groups/${id}/membersSpeaking`), (snap) => {
-                        const speakingMembers = snap.val() || {};
-                        updateSpeakingIndicators(speakingMembers);
-                    });
+                    groupOwner = groupData.owner;
+                    groupAdmins = groupData.admins || [];
+                    
+                    const userIsAdmin = currentUser === groupOwner || groupAdmins.includes(currentUser);
+                    
+                    if (userIsAdmin) {
+                         deleteGroupBtn.style.display = 'block';
+                         addMembersBtn.style.display = 'block';
+                    } else {
+                         deleteGroupBtn.style.display = 'none';
+                         addMembersBtn.style.display = 'none';
+                    }
+
+                    membersPanel.style.display = 'flex';
+                    loadMembersPanel(groupData.members, groupData.owner, groupData.admins || []);
                 }
                 chatTitle.style.cursor = 'pointer';
             }
             loadMessages();
         }
-
-        function updateSpeakingIndicators(speakingMembers) {
-            const memberItems = membersList.querySelectorAll('.member-item');
-            memberItems.forEach(item => {
-                const nameEl = item.querySelector('.name');
-                if (nameEl) {
-                    const memberNick = nameEl.textContent;
-                    const statusDot = item.querySelector('.avatar-status-dot');
-                    const isSpeaking = speakingMembers[memberNick];
-
-                    if (statusDot) {
-                        if (isSpeaking) {
-                            statusDot.classList.add('is-speaking');
-                        } else {
-                            statusDot.classList.remove('is-speaking');
-                        }
-                    }
-                }
+        
+        async function loadDMMembers(friendId) {
+            membersList.innerHTML = '';
+            
+            const members = [currentUser, friendId];
+            for (const member of members) {
+                const item = document.createElement('div');
+                item.className = 'member-item';
+                const avatar = `
+                    <div class="avatar">
+                        <div>${member.slice(0, 2).toUpperCase()}</div>
+                        <span class="avatar-status-dot" style="background:gray"></span>
+                    </div>
+                `;
+                const nameAndStatus = `
+                    <div class="member-info">
+                        <div class="name-container">
+                            <span class="name">${member}</span>
+                        </div>
+                        <div class="member-status">
+                            <span class="member-status-text">Offline</span>
+                        </div>
+                    </div>
+                `;
+                item.innerHTML = avatar + nameAndStatus;
+                item.onclick = (e) => showProfile(member);
+                membersList.appendChild(item);
+            }
+            
+            const statusRef = ref(db, 'status');
+            unsubscribeGroupMembersListener = onValue(statusRef, (snapshot) => {
+                const allStatuses = snapshot.val() || {};
+                const statusesToUpdate = {};
+                members.forEach(member => {
+                    statusesToUpdate[member] = allStatuses[member] || 'Offline';
+                });
+                updateMemberStatuses(statusesToUpdate);
             });
         }
 
-        async function loadMembersPanel(members, owner) {
+        async function loadMembersPanel(members, owner, admins) {
             membersList.innerHTML = '';
             for (const member of members) {
                 const item = document.createElement('div');
                 item.className = 'member-item';
                 const isOwner = member === owner;
+                const isAdmin = admins.includes(member);
                 const avatar = `
                     <div class="avatar">
                         <div>${member.slice(0, 2).toUpperCase()}</div>
@@ -1652,6 +1584,7 @@
                         <div class="name-container">
                             <span class="name">${member}</span>
                             ${isOwner ? '<span class="owner-badge">👑</span>' : ''}
+                            ${!isOwner && isAdmin ? '<span class="admin-badge">🛡️</span>' : ''}
                         </div>
                         <div class="member-status">
                             <span class="member-status-text">Offline</span>
@@ -1662,11 +1595,12 @@
                 item.onclick = (e) => {
                     if (e.button === 0) showProfile(member);
                 };
-                if (currentUser === owner && member !== currentUser) {
+                const userCanManage = currentUser === owner || groupAdmins.includes(currentUser);
+                if (userCanManage && member !== currentUser) {
                     item.addEventListener('contextmenu', e => {
                         e.preventDefault();
                         activeMemberProfile = member;
-                        showMemberContextMenu(e);
+                        showMemberContextMenu(e, isAdmin, isOwner);
                     });
                 }
                 membersList.appendChild(item);
@@ -1683,7 +1617,28 @@
             });
         }
 
-        function showMemberContextMenu(e) {
+        function showMemberContextMenu(e, isAdmin, isOwner) {
+            kickMemberItem.style.display = 'block';
+            setAdminItem.style.display = 'block';
+            removeAdminItem.style.display = 'block';
+            
+            // Wyrzuć
+            kickMemberItem.textContent = "Wyrzuć z grupy";
+            
+            // Ustaw/usuń admina
+            if (isOwner) {
+                kickMemberItem.style.display = 'none'; // Nie można wyrzucić właściciela
+                setAdminItem.style.display = 'none';
+                removeAdminItem.style.display = 'none';
+            } else if (isAdmin) {
+                setAdminItem.style.display = 'none';
+                removeAdminItem.style.display = 'block';
+            } else {
+                setAdminItem.style.display = 'block';
+                removeAdminItem.style.display = 'none';
+            }
+            
+            // Finalne pozycjonowanie
             memberContextMenu.style.display = 'block';
             memberContextMenu.style.top = `${e.clientY}px`;
             memberContextMenu.style.left = `${e.clientX}px`;
@@ -1697,28 +1652,61 @@
 
         kickMemberItem.onclick = async () => {
             if (activeMemberProfile && currentChatId) {
-                if (confirm(`Czy na pewno chcesz wyrzucić ${activeMemberProfile} z grupy?`)) {
-                    const groupRef = ref(db, `groups/${currentChatId}`);
-                    const userGroupRef = ref(db, `userGroups/${activeMemberProfile}/${currentChatId}`);
-                    
-                    const groupSnap = await get(groupRef);
-                    if (groupSnap.exists()) {
-                        const groupData = groupSnap.val();
-                        if (groupData.owner === currentUser) {
-                            const newMembers = groupData.members.filter(m => m !== activeMemberProfile);
-                            await update(groupRef, { members: newMembers });
-                            await remove(userGroupRef);
-                            await push(ref(db, `groupMessages/${currentChatId}`), {
-                                text: `${activeMemberProfile} został wyrzucony przez ${currentUser}.`,
-                                timestamp: Date.now(),
-                                isSystem: true
-                            });
-                            alert(`${activeMemberProfile} został usunięty z grupy.`);
-                            openChat(currentChatId, 'group');
-                        } else {
-                            alert("Nie masz uprawnień, aby to zrobić.");
-                        }
+                const groupRef = ref(db, `groups/${currentChatId}`);
+                const groupSnap = await get(groupRef);
+                const groupData = groupSnap.val();
+                
+                if (groupData.owner === currentUser || groupAdmins.includes(currentUser)) {
+                    if (confirm(`Czy na pewno chcesz wyrzucić ${activeMemberProfile} z grupy?`)) {
+                        const newMembers = groupData.members.filter(m => m !== activeMemberProfile);
+                        await update(groupRef, { members: newMembers });
+                        await remove(ref(db, `userGroups/${activeMemberProfile}/${currentChatId}`));
+                        await push(ref(db, `groupMessages/${currentChatId}`), {
+                            text: `${activeMemberProfile} został wyrzucony przez ${currentUser}.`,
+                            timestamp: Date.now(),
+                            isSystem: true
+                        });
+                        alert(`${activeMemberProfile} został usunięty z grupy.`);
+                        openChat(currentChatId, 'group');
                     }
+                } else {
+                    alert("Nie masz uprawnień, aby to zrobić.");
+                }
+            }
+            memberContextMenu.style.display = 'none';
+        };
+
+        setAdminItem.onclick = async () => {
+            if (activeMemberProfile && currentChatId) {
+                const groupRef = ref(db, `groups/${currentChatId}`);
+                const groupSnap = await get(groupRef);
+                const groupData = groupSnap.val();
+                
+                if (groupData.owner === currentUser) {
+                     const updatedAdmins = [...(groupData.admins || []), activeMemberProfile];
+                     await update(groupRef, { admins: updatedAdmins });
+                     alert(`${activeMemberProfile} został mianowany administratorem.`);
+                     openChat(currentChatId, 'group');
+                } else {
+                    alert("Tylko właściciel może nadawać uprawnienia administratora.");
+                }
+            }
+            memberContextMenu.style.display = 'none';
+        };
+
+        removeAdminItem.onclick = async () => {
+             if (activeMemberProfile && currentChatId) {
+                const groupRef = ref(db, `groups/${currentChatId}`);
+                const groupSnap = await get(groupRef);
+                const groupData = groupSnap.val();
+                
+                if (groupData.owner === currentUser) {
+                     const updatedAdmins = (groupData.admins || []).filter(admin => admin !== activeMemberProfile);
+                     await update(groupRef, { admins: updatedAdmins });
+                     alert(`${activeMemberProfile} został pozbawiony uprawnień administratora.`);
+                     openChat(currentChatId, 'group');
+                } else {
+                    alert("Tylko właściciel może usuwać uprawnienia administratora.");
                 }
             }
             memberContextMenu.style.display = 'none';
@@ -1786,7 +1774,7 @@
         };
 
         chatTitle.addEventListener('dblclick', async () => {
-            if (currentChatType === 'group' && currentChatId) {
+            if (currentChatType === 'group' && currentChatId && (currentUser === groupOwner || groupAdmins.includes(currentUser))) {
                 const currentName = chatTitle.textContent;
                 const input = document.createElement('input');
                 input.type = 'text';
@@ -1819,6 +1807,8 @@
                     input.replaceWith(chatTitle);
                     chatTitle.textContent = currentName;
                 });
+            } else if (currentChatType === 'group') {
+                alert("Tylko właściciel lub administrator może edytować nazwę grupy.");
             }
         });
 
@@ -1953,195 +1943,6 @@
                 sendMsgBtn.click();
             }
         });
-
-        // ===== VOICE CHAT FUNCTIONS =====
-        const PEER_CONFIG = {
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-        };
-
-        async function startVoiceCall() {
-            if (currentChatType !== 'group' || localStream) return;
-        
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                await set(ref(db, `status/${currentUser}`), 'Rozmawia');
-                await set(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`), true);
-                voiceCallBtn.style.display = 'none';
-                hangUpBtn.style.display = 'block';
-                voiceControls.style.display = 'flex';
-                
-                // Add event listener for input level
-                const audioContext = new AudioContext();
-                const microphone = audioContext.createMediaStreamSource(localStream);
-                const scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
-                
-                let isSpeaking = false;
-                scriptProcessor.onaudioprocess = async (event) => {
-                    if (isMicMuted) return;
-                    const input = event.inputBuffer.getChannelData(0);
-                    let sum = 0;
-                    for (let i = 0; i < input.length; i++) {
-                        sum += input[i] * input[i];
-                    }
-                    const rms = Math.sqrt(sum / input.length);
-        
-                    if (rms > 0.05 && !isSpeaking) {
-                        isSpeaking = true;
-                        await set(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`), true);
-                    } else if (rms < 0.02 && isSpeaking) {
-                        isSpeaking = false;
-                        await set(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`), false);
-                    }
-                };
-                microphone.connect(scriptProcessor);
-                scriptProcessor.connect(audioContext.destination);
-        
-                const groupMembersSnap = await get(ref(db, `groups/${currentChatId}/members`));
-                const members = groupMembersSnap.val();
-        
-                for (const member of members) {
-                    if (member !== currentUser) {
-                        await createPeerConnection(member);
-                    }
-                }
-            } catch (error) {
-                console.error("Błąd dostępu do mikrofonu:", error);
-                
-                // New, more specific error message
-                let errorMessage = "Wystąpił nieznany błąd podczas próby dostępu do mikrofonu.";
-                if (error.name === "NotAllowedError") {
-                    errorMessage = "Odmówiono dostępu do mikrofonu. Upewnij się, że zezwoliłeś na jego użycie.";
-                } else if (error.name === "NotFoundError") {
-                    errorMessage = "Nie znaleziono mikrofonu. Upewnij się, że jest podłączony i działa poprawnie.";
-                } else if (error.name === "NotReadableError") {
-                    errorMessage = "Mikrofon jest niedostępny, być może używa go inna aplikacja.";
-                }
-                
-                alert(errorMessage);
-                hangUp();
-            }
-        }
-
-        async function createPeerConnection(remoteUser) {
-            const pc = new RTCPeerConnection(PEER_CONFIG);
-            peerConnections[remoteUser] = pc;
-
-            if (localStream) {
-                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            } else {
-                console.warn("Local stream is not available, cannot add tracks.");
-            }
-
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    set(ref(db, `voiceSignals/${remoteUser}/${currentUser}/candidate`), event.candidate.toJSON());
-                }
-            };
-
-            pc.ontrack = (event) => {
-                const audio = document.createElement('audio');
-                audio.srcObject = event.streams[0];
-                audio.autoplay = true;
-                audio.setAttribute('data-peer-audio', remoteUser);
-                document.body.appendChild(audio);
-            };
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            set(ref(db, `voiceSignals/${remoteUser}/${currentUser}/offer`), offer.toJSON());
-        }
-
-        onValue(ref(db, `voiceSignals/${currentUser}`), async (snapshot) => {
-            const signals = snapshot.val();
-            if (!signals) return;
-
-            for (const sender in signals) {
-                const signal = signals[sender];
-                
-                if (!peerConnections[sender]) {
-                    const pc = new RTCPeerConnection(PEER_CONFIG);
-                    peerConnections[sender] = pc;
-
-                    pc.ontrack = (event) => {
-                        const audio = document.createElement('audio');
-                        audio.srcObject = event.streams[0];
-                        audio.autoplay = true;
-                        audio.setAttribute('data-peer-audio', sender);
-                        document.body.appendChild(audio);
-                    };
-
-                    pc.onicecandidate = (event) => {
-                        if (event.candidate) {
-                            set(ref(db, `voiceSignals/${sender}/${currentUser}/candidate`), event.candidate.toJSON());
-                        }
-                    };
-                }
-
-                if (signal.offer) {
-                    await peerConnections[sender].setRemoteDescription(new RTCSessionDescription(signal.offer));
-                    const answer = await peerConnections[sender].createAnswer();
-                    await peerConnections[sender].setLocalDescription(answer);
-                    set(ref(db, `voiceSignals/${sender}/${currentUser}/answer`), answer.toJSON());
-                    set(ref(db, `voiceSignals/${currentUser}/${sender}`), null);
-                } else if (signal.answer) {
-                    await peerConnections[sender].setRemoteDescription(new RTCSessionDescription(signal.answer));
-                } else if (signal.candidate) {
-                    try {
-                        await peerConnections[sender].addIceCandidate(new RTCIceCandidate(signal.candidate));
-                    } catch (e) {
-                        console.error("Error adding received ICE candidate", e);
-                    }
-                }
-            }
-        });
-
-        function hangUp() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-
-            for (const peer in peerConnections) {
-                if (peerConnections[peer]) {
-                    peerConnections[peer].close();
-                }
-                delete peerConnections[peer];
-            }
-            
-            const audios = document.querySelectorAll('audio[data-peer-audio]');
-            audios.forEach(audio => audio.remove());
-
-            if (currentChatId) {
-                remove(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`));
-            }
-            
-            set(ref(db, `status/${currentUser}`), myStatus);
-            voiceCallBtn.style.display = 'block';
-            hangUpBtn.style.display = 'none';
-            voiceControls.style.display = 'none';
-        }
-        
-        muteMicBtn.onclick = () => {
-            isMicMuted = !isMicMuted;
-            const micTrack = localStream.getAudioTracks()[0];
-            if (micTrack) {
-                micTrack.enabled = !isMicMuted;
-                muteMicBtn.textContent = isMicMuted ? '🔇' : '🎤';
-            }
-            set(ref(db, `groups/${currentChatId}/membersSpeaking/${currentUser}`), !isMicMuted);
-        };
-        
-        muteSpeakerBtn.onclick = () => {
-            isSpeakerMuted = !isSpeakerMuted;
-            const audios = document.querySelectorAll('audio[data-peer-audio]');
-            audios.forEach(audio => {
-                audio.volume = isSpeakerMuted ? 0 : 1;
-            });
-            muteSpeakerBtn.textContent = isSpeakerMuted ? '🔇' : '🔊';
-        };
-
-        voiceCallBtn.onclick = startVoiceCall;
-        hangUpBtn.onclick = hangUp;
         
         // Finalne sprawdzenie statusu logowania
         const loggedInUser = localStorage.getItem('currentUser');
