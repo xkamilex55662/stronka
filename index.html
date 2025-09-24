@@ -1,609 +1,744 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Zaawansowany Czat Globalny</title>
-<style>
-  /* Reset i podstawy */
-  * {
-    box-sizing: border-box;
-  }
-  body {
-    margin: 0; padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
-    color: #eee;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zaawansowany Czat Globalny</title>
+    <style>
+        /* Reset i podstawy */
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: #eee;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
 
-  header {
-    background: rgba(0,0,0,0.7);
-    padding: 15px;
-    text-align: center;
-    font-size: 24px;
-    font-weight: bold;
-    user-select: none;
-  }
+        header {
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-  main {
-    flex: 1;
-    display: flex;
-    gap: 15px;
-    padding: 15px;
-  }
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            flex-grow: 1;
+        }
 
-  /* Sidebar z użytkownikami online */
-  #usersOnline {
-    width: 220px;
-    background: rgba(0,0,0,0.6);
-    border-radius: 8px;
-    padding: 10px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-  #usersOnline h3 {
-    margin-top: 0;
-    margin-bottom: 10px;
-    font-size: 20px;
-    text-align: center;
-  }
-  #usersList {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    flex: 1;
-  }
-  #usersList li {
-    padding: 6px 10px;
-    margin-bottom: 5px;
-    border-radius: 5px;
-    cursor: pointer;
-    background: rgba(255,255,255,0.1);
-    transition: background-color 0.2s;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  #usersList li:hover {
-    background: rgba(255,255,255,0.25);
-  }
-  #usersList li.selected {
-    background: #28a745;
-    color: white;
-    font-weight: bold;
-  }
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
 
-  /* Sekcja czatu */
-  #chatSection {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background: rgba(0,0,0,0.7);
-    border-radius: 8px;
-    padding: 10px;
-  }
+        main {
+            flex: 1;
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+        }
 
-  #chatBox {
-    flex: 1;
-    overflow-y: auto;
-    padding: 5px 10px;
-    border-radius: 6px;
-    background: #111;
-    font-size: 14px;
-  }
+        /* Sidebar z użytkownikami online */
+        #usersOnline {
+            width: 220px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 8px;
+            padding: 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        #usersOnline h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 20px;
+            text-align: center;
+        }
+        #usersList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex: 1;
+        }
+        #usersList li {
+            padding: 6px 10px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.1);
+            transition: background-color 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #usersList li:hover {
+            background: rgba(255,255,255,0.25);
+        }
+        #usersList li.selected {
+            background: #28a745;
+            color: white;
+            font-weight: bold;
+        }
 
-  /* Wiadomości */
-  .message {
-    margin-bottom: 10px;
-    padding: 6px 10px;
-    border-radius: 10px;
-    max-width: 80%;
-    word-wrap: break-word;
-    position: relative;
-  }
-  .message.public {
-    background: rgba(40,167,69,0.8);
-    color: #e0f7e9;
-  }
-  .message.private {
-    background: rgba(255,193,7,0.85);
-    color: #4a3b00;
-  }
-  .message.admin {
-    border: 2px solid #dc3545;
-  }
-  .message .meta {
-    font-size: 11px;
-    opacity: 0.7;
-    margin-bottom: 3px;
-  }
-  .message .text {
-    white-space: pre-wrap;
-  }
-  .message .deleteBtn {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    background: #dc3545;
-    border: none;
-    color: white;
-    font-weight: bold;
-    border-radius: 3px;
-    cursor: pointer;
-    padding: 2px 5px;
-    font-size: 12px;
-    display: none;
-  }
-  .message.admin .deleteBtn {
-    display: block;
-  }
+        /* Sekcja czatu */
+        #chatSection {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(0,0,0,0.7);
+            border-radius: 8px;
+            padding: 10px;
+        }
 
-  /* Formularz wysyłania */
-  #sendForm {
-    margin-top: 10px;
-    display: flex;
-    gap: 10px;
-  }
-  #msgInput {
-    flex: 1;
-    padding: 8px 12px;
-    font-size: 16px;
-    border-radius: 6px;
-    border: none;
-  }
-  #sendBtn {
-    background: #28a745;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 18px;
-    color: white;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
-  #sendBtn:hover {
-    background: #218838;
-  }
+        #chatBox {
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px 10px;
+            border-radius: 6px;
+            background: #111;
+            font-size: 14px;
+        }
 
-  /* Panel logowania/rejestracji */
-  #authPanel {
-    position: fixed;
-    top:0; left:0; right:0; bottom:0;
-    background: rgba(0,0,0,0.85);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-  }
-  #authPanel form {
-    background: #222;
-    padding: 20px 25px;
-    border-radius: 12px;
-    min-width: 320px;
-    box-shadow: 0 0 15px rgba(0,0,0,0.7);
-  }
-  #authPanel h2 {
-    margin-top: 0;
-    margin-bottom: 15px;
-    color: #28a745;
-    text-align: center;
-  }
-  #authPanel label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: bold;
-  }
-  #authPanel input {
-    width: 100%;
-    padding: 8px 10px;
-    margin-bottom: 15px;
-    border-radius: 6px;
-    border: none;
-    font-size: 14px;
-  }
-  #authPanel button {
-    width: 100%;
-    padding: 10px;
-    font-size: 16px;
-    background: #28a745;
-    border: none;
-    border-radius: 6px;
-    color: white;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
-  #authPanel button:hover {
-    background: #218838;
-  }
-  #authSwitch {
-    margin-top: 10px;
-    text-align: center;
-    color: #bbb;
-    cursor: pointer;
-    user-select: none;
-  }
-  #authError {
-    color: #dc3545;
-    margin-bottom: 10px;
-    font-weight: bold;
-    min-height: 20px;
-  }
+        /* Wiadomości */
+        .message {
+            margin-bottom: 10px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+            position: relative;
+        }
+        .message.public {
+            background: rgba(40,167,69,0.8);
+            color: #e0f7e9;
+        }
+        .message.private {
+            background: rgba(255,193,7,0.85);
+            color: #4a3b00;
+        }
+        .message.admin-message {
+            border: 2px solid #dc3545;
+        }
+        .message .meta {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-bottom: 3px;
+        }
+        .message .text {
+            white-space: pre-wrap;
+        }
+        .message .deleteBtn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: #dc3545;
+            border: none;
+            color: white;
+            font-weight: bold;
+            border-radius: 3px;
+            cursor: pointer;
+            padding: 2px 5px;
+            font-size: 12px;
+            display: none;
+        }
+        .message.admin-message .deleteBtn {
+            display: block;
+        }
 
-  /* Wyświetlanie info o aktualnym userze */
-  #userInfo {
-    text-align: right;
-    padding: 10px 15px;
-    font-weight: bold;
-    background: rgba(0,0,0,0.6);
-  }
-  #logoutBtn {
-    background: #dc3545;
-    border: none;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    margin-left: 15px;
-  }
-  #logoutBtn:hover {
-    background: #b02a37;
-  }
+        /* Formularz wysyłania */
+        #sendForm {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        #msgInput {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: none;
+        }
+        #sendBtn {
+            background: #28a745;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 18px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #sendBtn:hover {
+            background: #218838;
+        }
 
-  /* Responsywność */
-  @media(max-width: 600px) {
-    main {
-      flex-direction: column;
-    }
-    #usersOnline {
-      width: 100%;
-      max-height: 150px;
-      order: 2;
-    }
-    #chatSection {
-      order: 1;
-      height: 400px;
-    }
-  }
-</style>
+        /* Panel logowania/rejestracji */
+        #authPanel {
+            position: fixed;
+            top:0; left:0; right:0; bottom:0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        #authPanel form {
+            background: #222;
+            padding: 20px 25px;
+            border-radius: 12px;
+            min-width: 320px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.7);
+        }
+        #authPanel h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #28a745;
+            text-align: center;
+        }
+        #authPanel label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        #authPanel input {
+            width: 100%;
+            padding: 8px 10px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+        }
+        #authPanel button {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            background: #28a745;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #authPanel button:hover {
+            background: #218838;
+        }
+        #authSwitch {
+            margin-top: 10px;
+            text-align: center;
+            color: #bbb;
+            cursor: pointer;
+            user-select: none;
+        }
+        #authError {
+            color: #dc3545;
+            margin-bottom: 10px;
+            font-weight: bold;
+            min-height: 20px;
+        }
+
+        /* Wyświetlanie info o aktualnym userze */
+        #userInfo {
+            text-align: right;
+            padding: 10px 15px;
+            font-weight: bold;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        #logoutBtn, #adminPanelBtn {
+            background: #dc3545;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 15px;
+        }
+        #logoutBtn:hover, #adminPanelBtn:hover {
+            background: #b02a37;
+        }
+        #adminPanelBtn {
+            background: #007bff;
+        }
+        #adminPanelBtn:hover {
+            background: #0056b3;
+        }
+
+        /* Panel administracyjny */
+        #adminPanel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #222;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            z-index: 10000;
+            min-width: 400px;
+            display: none;
+        }
+        #adminPanel h2 {
+            margin-top: 0;
+            color: #fff;
+            text-align: center;
+        }
+        #adminPanel p {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 20px;
+        }
+        #adminPanel button {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            color: white;
+        }
+        #adminPanel .delete-all-btn {
+            background: #dc3545;
+        }
+        #adminPanel .delete-all-btn:hover {
+            background: #b02a37;
+        }
+        #adminPanel .close-btn {
+            background: #6c757d;
+        }
+        #adminPanel .close-btn:hover {
+            background: #5a6268;
+        }
+
+        /* Responsywność */
+        @media(max-width: 600px) {
+            main {
+                flex-direction: column;
+            }
+            #usersOnline {
+                width: 100%;
+                max-height: 150px;
+                order: 2;
+            }
+            #chatSection {
+                order: 1;
+                height: 400px;
+            }
+        }
+    </style>
 </head>
 <body>
 
-<header>💬 Zaawansowany Czat Globalny</header>
+<header>
+    <h1>💬 Zaawansowany Czat Globalny</h1>
+    <div class="header-buttons">
+        <button id="adminPanelBtn" style="display:none;">Panel Admina</button>
+        <button id="logoutBtn" style="display:none;">Wyloguj</button>
+    </div>
+</header>
 
 <div id="authPanel">
-  <form id="authForm">
-    <h2 id="authTitle">Logowanie</h2>
-    <div id="authError"></div>
-    <label for="nickInput">Nick</label>
-    <input type="text" id="nickInput" autocomplete="off" required minlength="3" maxlength="20" />
-    <label for="passInput">Hasło</label>
-    <input type="password" id="passInput" required minlength="6" maxlength="30" autocomplete="off" />
-    <button type="submit" id="authSubmit">Zaloguj się</button>
-    <div id="authSwitch">Nie masz konta? <strong>Zarejestruj się</strong></div>
-  </form>
+    <form id="authForm">
+        <h2 id="authTitle">Logowanie</h2>
+        <div id="authError"></div>
+        <label for="nickInput">Nick</label>
+        <input type="text" id="nickInput" autocomplete="off" required minlength="3" maxlength="20" />
+        <label for="passInput">Hasło</label>
+        <input type="password" id="passInput" required minlength="6" maxlength="30" autocomplete="off" />
+        <button type="submit" id="authSubmit">Zaloguj się</button>
+        <div id="authSwitch">Nie masz konta? <strong>Zarejestruj się</strong></div>
+    </form>
 </div>
 
 <main style="display:none;">
-  <aside id="usersOnline">
-    <h3>Użytkownicy Online</h3>
-    <ul id="usersList"></ul>
-  </aside>
+    <aside id="usersOnline">
+        <h3>Użytkownicy Online</h3>
+        <ul id="usersList"></ul>
+    </aside>
 
-  <section id="chatSection">
-    <div id="userInfo">
-      <span id="currentUserNick"></span> (<span id="currentUserRole">Użytkownik</span>)
-      <button id="logoutBtn">Wyloguj</button>
-    </div>
+    <section id="chatSection">
+        <div id="userInfo">
+            <div>
+                <span id="currentUserNick"></span> (<span id="currentUserRole"></span>)
+                <span id="chatModeIndicator" style="font-weight:normal; font-style:italic;"></span>
+            </div>
+            <button id="publicChatBtn" style="display:none;">Przejdź do czatu publicznego</button>
+        </div>
 
-    <div id="chatBox" aria-live="polite" aria-label="Okno czatu"></div>
+        <div id="chatBox" aria-live="polite" aria-label="Okno czatu"></div>
 
-    <form id="sendForm" autocomplete="off">
-      <input type="text" id="msgInput" placeholder="Napisz wiadomość..." autocomplete="off" />
-      <button type="submit" id="sendBtn">Wyślij</button>
-    </form>
-  </section>
+        <form id="sendForm" autocomplete="off">
+            <input type="text" id="msgInput" placeholder="Napisz wiadomość..." autocomplete="off" />
+            <button type="submit" id="sendBtn">Wyślij</button>
+        </form>
+    </section>
 </main>
 
+<div id="adminPanel">
+    <h2>Panel Administracyjny</h2>
+    <p>Uwaga! Poniższe operacje są nieodwracalne.</p>
+    <button id="deleteAllPublicBtn" class="delete-all-btn">Usuń wszystkie wiadomości publiczne</button>
+    <button id="deleteAllPrivateBtn" class="delete-all-btn">Usuń wszystkie wiadomości prywatne</button>
+    <button id="closeAdminPanel" class="close-btn">Zamknij</button>
+</div>
+
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-  import { getDatabase, ref, push, onValue, set, remove, onDisconnect, get, child } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import { getDatabase, ref, push, onValue, set, remove, onDisconnect, get, child } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
-  // Firebase config — zastąp swoimi danymi!
-  const firebaseConfig = {
-    apiKey: "AIzaSyBWtZUr7xoa31uoH18hksqSjCXMd2F18Ew",
-    authDomain: "strona-f0d19.firebaseapp.com",
-    databaseURL: "https://strona-f0d19-default-rtdb.firebaseio.com",
-    projectId: "strona-f0d19",
-    storageBucket: "strona-f0d19.appspot.com",
-    messagingSenderId: "34203329400",
-    appId: "1:34203329400:web:c934bf311b1a6701e8d",
-    measurementId: "G-HYCP5F1J3E"
-  };
+    // Firebase config — zastąp swoimi danymi!
+    const firebaseConfig = {
+        apiKey: "AIzaSyBWtZUr7xoa31uoH18hksqSjCXMd2F18Ew",
+        authDomain: "strona-f0d19.firebaseapp.com",
+        databaseURL: "https://strona-f0d19-default-rtdb.firebaseio.com",
+        projectId: "strona-f0d19",
+        storageBucket: "strona-f0d19.appspot.com",
+        messagingSenderId: "34203329400",
+        appId: "1:34203329400:web:c934bf311b1a6701e8d",
+        measurementId: "G-HYCP5F1J3E"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-  // Pomocnik hashujący SHA-256 (prosty)
-  async function hashPassword(pass) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(pass);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  }
+    // Pomocnik hashujący SHA-256 (prosty)
+    async function hashPassword(pass) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(pass);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
 
-  // UI elementy
-  const authPanel = document.getElementById('authPanel');
-  const authForm = document.getElementById('authForm');
-  const authTitle = document.getElementById('authTitle');
-  const authError = document.getElementById('authError');
-  const authSwitch = document.getElementById('authSwitch');
-  const nickInput = document.getElementById('nickInput');
-  const passInput = document.getElementById('passInput');
+    // UI elementy
+    const authPanel = document.getElementById('authPanel');
+    const authForm = document.getElementById('authForm');
+    const authTitle = document.getElementById('authTitle');
+    const authError = document.getElementById('authError');
+    const authSwitch = document.getElementById('authSwitch');
+    const nickInput = document.getElementById('nickInput');
+    const passInput = document.getElementById('passInput');
 
-  const mainContent = document.querySelector('main');
-  const usersListEl = document.getElementById('usersList');
-  const chatBox = document.getElementById('chatBox');
-  const msgInput = document.getElementById('msgInput');
-  const sendForm = document.getElementById('sendForm');
-  const currentUserNickEl = document.getElementById('currentUserNick');
-  const currentUserRoleEl = document.getElementById('currentUserRole');
-  const logoutBtn = document.getElementById('logoutBtn');
+    const mainContent = document.querySelector('main');
+    const usersListEl = document.getElementById('usersList');
+    const chatBox = document.getElementById('chatBox');
+    const msgInput = document.getElementById('msgInput');
+    const sendForm = document.getElementById('sendForm');
+    const currentUserNickEl = document.getElementById('currentUserNick');
+    const currentUserRoleEl = document.getElementById('currentUserRole');
+    const chatModeIndicator = document.getElementById('chatModeIndicator');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const adminPanelBtn = document.getElementById('adminPanelBtn');
+    const publicChatBtn = document.getElementById('publicChatBtn');
 
-  let currentUser = null;  // {nick, isAdmin}
-  let selectedUser = null; // nick wybranego użytkownika do wiadomości prywatnej (null = publiczne)
-  let isRegisterMode = false;
+    // Panel administracyjny
+    const adminPanel = document.getElementById('adminPanel');
+    const deleteAllPublicBtn = document.getElementById('deleteAllPublicBtn');
+    const deleteAllPrivateBtn = document.getElementById('deleteAllPrivateBtn');
+    const closeAdminPanelBtn = document.getElementById('closeAdminPanel');
 
-  // Format daty i godziny
-  function formatDate(ts) {
-    const d = new Date(ts);
-    return d.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour:'2-digit', minute:'2-digit' });
-  }
+    let currentUser = null; 
+    let selectedUser = null; 
+    let isRegisterMode = false;
+    let messageListeners = [];
 
-  // Pokazuje wiadomości (publiczne i prywatne z wybranym userem)
-  function renderMessages(messagesSnapshot, privateMessagesSnapshot = null) {
-    chatBox.innerHTML = '';
+    // Format daty i godziny
+    function formatDate(ts) {
+        const d = new Date(ts);
+        return d.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour:'2-digit', minute:'2-digit' });
+    }
 
-    // Pomoc do utworzenia div wiadomości
-    function createMessageDiv(key, msg) {
-      const div = document.createElement('div');
-      div.classList.add('message');
+    // Escape HTML dla bezpieczeństwa
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-      // Typ wiadomości
-      if(msg.to) div.classList.add('private');
-      else div.classList.add('public');
+    // Pokaż wiadomości (publiczne i prywatne z wybranym userem)
+    function renderMessages(messagesSnapshot) {
+        chatBox.innerHTML = '';
+        const messages = [];
 
-      // Zaznaczenie admina
-      if(currentUser.isAdmin) div.classList.add('admin');
-
-      // Tekst
-      div.innerHTML = `
-        <div class="meta"><b>${msg.user}</b> ${msg.to ? `→ <b>${msg.to}</b>` : ''} <span> - ${formatDate(msg.timestamp)}</span></div>
-        <div class="text">${escapeHtml(msg.text)}</div>
-      `;
-
-      // Przycisk usuwania dla admina
-      if(currentUser.isAdmin) {
-        const delBtn = document.createElement('button');
-        delBtn.className = 'deleteBtn';
-        delBtn.textContent = 'Usuń';
-        delBtn.addEventListener('click', async () => {
-          if(confirm('Na pewno usunąć tę wiadomość?')) {
-            await remove(ref(db, 'messages/' + key));
-          }
+        messagesSnapshot.forEach(msgSnap => {
+            messages.push({
+                key: msgSnap.key,
+                ...msgSnap.val()
+            });
         });
-        div.appendChild(delBtn);
-      }
-      return div;
-    }
 
-    // Pokaż publiczne wiadomości
-    messagesSnapshot.forEach(msgSnap => {
-      const key = msgSnap.key;
-      const msg = msgSnap.val();
+        // Sortuj po dacie
+        messages.sort((a, b) => a.timestamp - b.timestamp);
 
-      // Jeśli to wiadomość prywatna, ignoruj tutaj
-      if(msg.to) return;
+        messages.forEach(msg => {
+            const div = document.createElement('div');
+            div.classList.add('message');
+            
+            if(msg.to) div.classList.add('private');
+            else div.classList.add('public');
 
-      chatBox.appendChild(createMessageDiv(key, msg));
-    });
+            if(currentUser.isAdmin) div.classList.add('admin-message');
 
-    // Jeśli jest wybrany user do prywatnych wiadomości, pokazujemy wiadomości prywatne
-    if(selectedUser && selectedUser !== currentUser.nick) {
-      if(privateMessagesSnapshot) {
-        privateMessagesSnapshot.forEach(msgSnap => {
-          const key = msgSnap.key;
-          const msg = msgSnap.val();
-          chatBox.appendChild(createMessageDiv(key, msg));
+            const fromUser = msg.user === currentUser.nick ? 'Ja' : `<b>${escapeHtml(msg.user)}</b>`;
+            const toUser = msg.to ? `→ <b>${escapeHtml(msg.to)}</b>` : '';
+
+            div.innerHTML = `
+                <div class="meta">${fromUser} ${toUser} <span> - ${formatDate(msg.timestamp)}</span></div>
+                <div class="text">${escapeHtml(msg.text)}</div>
+            `;
+
+            if(currentUser.isAdmin) {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'deleteBtn';
+                delBtn.textContent = 'Usuń';
+                delBtn.addEventListener('click', async () => {
+                    if(confirm('Na pewno usunąć tę wiadomość?')) {
+                        const messageRef = msg.to ? ref(db, `messages_private/${msg.conversationKey}/${msg.key}`) : ref(db, 'messages/' + msg.key);
+                        await remove(messageRef);
+                    }
+                });
+                div.appendChild(delBtn);
+            }
+            chatBox.appendChild(div);
         });
-      }
+
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Scrolluj na dół
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }
-
-  // Escape HTML dla bezpieczeństwa
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  // Pobierz wiadomości publiczne
-  const messagesRef = ref(db, 'messages');
-  onValue(messagesRef, (snapshot) => {
-    if(!currentUser) return;
-    if(!selectedUser || selectedUser === currentUser.nick) {
-      // Pokaz publiczne wiadomości
-      renderMessages(snapshot);
+    function removeAllListeners() {
+        messageListeners.forEach(listener => listener());
+        messageListeners = [];
     }
-  });
 
-  // Pobierz użytkowników online i wyświetl
-  const onlineRef = ref(db, 'online');
-  onValue(onlineRef, (snapshot) => {
-    usersListEl.innerHTML = '';
-    snapshot.forEach(userSnap => {
-      const nick = userSnap.key;
-      if(nick === currentUser?.nick) return; // nie pokazuj siebie na liście
-      const li = document.createElement('li');
-      li.textContent = nick;
-      if(selectedUser === nick) li.classList.add('selected');
-      li.title = "Kliknij, by wysłać prywatną wiadomość";
-      li.addEventListener('click', () => {
-        if(selectedUser === nick) {
-          // klik na wybranego użytkownika - odznacz
-          selectedUser = null;
+    // Zarządza subskrypcją wiadomości
+    function listenForMessages() {
+        removeAllListeners();
+
+        if (selectedUser === 'public') {
+            const messagesRef = ref(db, 'messages');
+            const unsubscribe = onValue(messagesRef, (snapshot) => {
+                if(!currentUser) return;
+                renderMessages(snapshot);
+            });
+            messageListeners.push(unsubscribe);
+
+        } else if (selectedUser) {
+            const sortedPair = [currentUser.nick, selectedUser].sort();
+            const privatePath = `messages_private/${sortedPair[0]}_${sortedPair[1]}`;
+            const privateRef = ref(db, privatePath);
+            
+            const unsubscribe = onValue(privateRef, (snapshot) => {
+                if(!currentUser) return;
+                const privateMessages = [];
+                snapshot.forEach(msgSnap => {
+                    privateMessages.push({
+                        key: msgSnap.key,
+                        conversationKey: `${sortedPair[0]}_${sortedPair[1]}`,
+                        ...msgSnap.val()
+                    });
+                });
+                renderMessages(privateMessages);
+            });
+            messageListeners.push(unsubscribe);
         } else {
-          selectedUser = nick;
+            chatBox.innerHTML = '';
         }
-        renderChat();
-      });
-      usersListEl.appendChild(li);
+    }
+
+    // Przełączanie trybu czatu
+    function switchChatMode(mode, targetUser = null) {
+        selectedUser = targetUser;
+        let selectedLi = document.querySelector('#usersList li.selected');
+        if (selectedLi) selectedLi.classList.remove('selected');
+
+        if (mode === 'public') {
+            selectedUser = 'public';
+            chatModeIndicator.textContent = '(czat publiczny)';
+            publicChatBtn.style.display = 'none';
+        } else {
+            chatModeIndicator.textContent = `(DM: ${selectedUser})`;
+            publicChatBtn.style.display = 'inline-block';
+            const userLi = document.querySelector(`#usersList li[data-nick="${targetUser}"]`);
+            if (userLi) userLi.classList.add('selected');
+        }
+        listenForMessages();
+    }
+
+    // Pobierz użytkowników online i wyświetl
+    const onlineRef = ref(db, 'online');
+    onValue(onlineRef, (snapshot) => {
+        usersListEl.innerHTML = '';
+        snapshot.forEach(userSnap => {
+            const nick = userSnap.key;
+            if(nick === currentUser?.nick) return; 
+
+            const li = document.createElement('li');
+            li.textContent = nick;
+            li.setAttribute('data-nick', nick);
+            if(selectedUser === nick) li.classList.add('selected');
+            li.title = `Kliknij, by wysłać wiadomość do ${nick}`;
+            li.addEventListener('click', () => {
+                switchChatMode('private', nick);
+            });
+            usersListEl.appendChild(li);
+        });
     });
-  });
 
-  // Zaznaczanie, czy pokazujemy czat publiczny czy prywatny
-  function renderChat() {
-    if(!currentUser) return;
-    if(!selectedUser || selectedUser === currentUser.nick) {
-      // publiczny czat
-      currentUserRoleEl.textContent = currentUser.isAdmin ? 'Admin (publiczny czat)' : 'Użytkownik (publiczny czat)';
-      // Pobierz publiczne wiadomości
-      get(messagesRef).then(snap => renderMessages(snap));
-    } else {
-      // prywatny czat z selectedUser
-      currentUserRoleEl.textContent = currentUser.isAdmin ? `Admin (DM: ${selectedUser})` : `Użytkownik (DM: ${selectedUser})`;
+    // Po zalogowaniu pokaż UI czatu
+    function afterLogin() {
+        authPanel.style.display = 'none';
+        mainContent.style.display = 'flex';
+        logoutBtn.style.display = 'inline-block';
+        currentUserNickEl.textContent = currentUser.nick;
+        currentUserRoleEl.textContent = currentUser.isAdmin ? 'Admin' : 'Użytkownik';
+        if (currentUser.isAdmin) {
+            adminPanelBtn.style.display = 'inline-block';
+        }
 
-      // Klucz prywatnej konwersacji - uporządkowany aby było spójne:
-      const sortedPair = [currentUser.nick, selectedUser].sort();
-      const privatePath = `messages_private/${sortedPair[0]}_${sortedPair[1]}`;
-      const privateRef = ref(db, privatePath);
-      onValue(privateRef, snap => {
-        renderMessages({forEach: (cb) => snap.forEach(cb)}, snap);
-      });
-    }
-  }
+        const userOnlineRef = ref(db, 'online/' + currentUser.nick);
+        set(userOnlineRef, true);
+        onDisconnect(userOnlineRef).remove();
 
-  // Po zalogowaniu pokaż UI czatu
-  function afterLogin() {
-    authPanel.style.display = 'none';
-    mainContent.style.display = 'flex';
-    currentUserNickEl.textContent = currentUser.nick;
-    renderChat();
-
-    // Dodaj użytkownika do online i usuń przy wyjściu
-    const userOnlineRef = ref(db, 'online/' + currentUser.nick);
-    set(userOnlineRef, true);
-    onDisconnect(userOnlineRef).remove();
-  }
-
-  // Logowanie lub rejestracja
-  authForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    authError.textContent = '';
-
-    const nick = nickInput.value.trim();
-    const pass = passInput.value;
-
-    if(nick.length < 3 || pass.length < 6) {
-      authError.textContent = 'Nick musi mieć min. 3 znaki, hasło min. 6 znaków.';
-      return;
+        // Domyślnie pokaż czat publiczny
+        switchChatMode('public');
     }
 
-    const userRef = ref(db, 'users/' + nick);
-    const snapshot = await get(userRef);
+    // Logowanie lub rejestracja
+    authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        authError.textContent = '';
+        const nick = nickInput.value.trim();
+        const pass = passInput.value;
 
-    if(isRegisterMode) {
-      // Rejestracja
-      if(snapshot.exists()) {
-        authError.textContent = 'Ten nick jest już zajęty.';
-        return;
-      }
-      // Zarejestruj użytkownika
-      const hashed = await hashPassword(pass);
-      await set(userRef, { passwordHash: hashed, isAdmin: false });
-      currentUser = { nick, isAdmin: false };
-      afterLogin();
-    } else {
-      // Logowanie
-      if(!snapshot.exists()) {
-        authError.textContent = 'Nie znaleziono takiego nicku.';
-        return;
-      }
-      const data = snapshot.val();
-      const hashed = await hashPassword(pass);
-      if(hashed !== data.passwordHash) {
-        authError.textContent = 'Niepoprawne hasło.';
-        return;
-      }
-      currentUser = { nick, isAdmin: data.isAdmin || false };
-      afterLogin();
-    }
-  });
+        if(nick.length < 3 || pass.length < 6) {
+            authError.textContent = 'Nick musi mieć min. 3 znaki, hasło min. 6 znaków.';
+            return;
+        }
 
-  // Przełącznik między logowaniem a rejestracją
-  authSwitch.addEventListener('click', () => {
-    isRegisterMode = !isRegisterMode;
-    authTitle.textContent = isRegisterMode ? 'Rejestracja' : 'Logowanie';
-    authSubmit.textContent = isRegisterMode ? 'Zarejestruj się' : 'Zaloguj się';
-    authError.textContent = '';
-    authSwitch.innerHTML = isRegisterMode ?
-      'Masz konto? <strong>Zaloguj się</strong>' :
-      'Nie masz konta? <strong>Zarejestruj się</strong>';
-  });
+        const userRef = ref(db, 'users/' + nick);
+        const snapshot = await get(userRef);
 
-  // Wylogowanie
-  logoutBtn.addEventListener('click', () => {
-    // Usuń z online
-    if(currentUser) {
-      remove(ref(db, 'online/' + currentUser.nick));
-    }
-    currentUser = null;
-    selectedUser = null;
-    mainContent.style.display = 'none';
-    authPanel.style.display = 'flex';
-    authForm.reset();
-  });
+        if(isRegisterMode) {
+            if(snapshot.exists()) {
+                authError.textContent = 'Ten nick jest już zajęty.';
+                return;
+            }
+            const hashed = await hashPassword(pass);
+            await set(userRef, { passwordHash: hashed, isAdmin: false });
+            currentUser = { nick, isAdmin: false };
+            afterLogin();
+        } else {
+            if(!snapshot.exists()) {
+                authError.textContent = 'Nie znaleziono takiego nicku.';
+                return;
+            }
+            const data = snapshot.val();
+            const hashed = await hashPassword(pass);
+            if(hashed !== data.passwordHash) {
+                authError.textContent = 'Niepoprawne hasło.';
+                return;
+            }
+            currentUser = { nick, isAdmin: data.isAdmin || false };
+            afterLogin();
+        }
+    });
 
-  // Wysyłanie wiadomości (publiczne lub prywatne)
-  sendForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if(!currentUser) return;
-    let text = msgInput.value.trim();
-    if(text.length === 0) return;
+    // Przełącznik między logowaniem a rejestracją
+    authSwitch.addEventListener('click', () => {
+        isRegisterMode = !isRegisterMode;
+        authTitle.textContent = isRegisterMode ? 'Rejestracja' : 'Logowanie';
+        authSubmit.textContent = isRegisterMode ? 'Zarejestruj się' : 'Zaloguj się';
+        authError.textContent = '';
+        authSwitch.innerHTML = isRegisterMode ?
+            'Masz konto? <strong>Zaloguj się</strong>' :
+            'Nie masz konta? <strong>Zarejestruj się</strong>';
+    });
 
-    // Sanityzacja tekstu (prosta)
-    text = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // Wylogowanie
+    logoutBtn.addEventListener('click', () => {
+        if(currentUser) {
+            remove(ref(db, 'online/' + currentUser.nick));
+        }
+        currentUser = null;
+        selectedUser = null;
+        mainContent.style.display = 'none';
+        logoutBtn.style.display = 'none';
+        adminPanelBtn.style.display = 'none';
+        authPanel.style.display = 'flex';
+        authForm.reset();
+        removeAllListeners();
+    });
 
-    const timestamp = Date.now();
+    // Przycisk "Przejdź do czatu publicznego"
+    publicChatBtn.addEventListener('click', () => {
+        switchChatMode('public');
+    });
 
-    if(selectedUser && selectedUser !== currentUser.nick) {
-      // Wiadomość prywatna
-      const sortedPair = [currentUser.nick, selectedUser].sort();
-      const privatePath = `messages_private/${sortedPair[0]}_${sortedPair[1]}`;
-      await push(ref(db, privatePath), {
-        user: currentUser.nick,
-        to: selectedUser,
-        text,
-        timestamp
-      });
-    } else {
-      // Wiadomość publiczna
-      await push(ref(db, 'messages'), {
-        user: currentUser.nick,
-        text,
-        timestamp
-      });
-    }
-    msgInput.value = '';
-  });
+    // Wysyłanie wiadomości (publiczne lub prywatne)
+    sendForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if(!currentUser) return;
+        let text = msgInput.value.trim();
+        if(text.length === 0) return;
+
+        const timestamp = Date.now();
+        const msgObject = {
+            user: currentUser.nick,
+            text,
+            timestamp
+        };
+
+        if(selectedUser !== 'public') {
+            const sortedPair = [currentUser.nick, selectedUser].sort();
+            const privatePath = `messages_private/${sortedPair[0]}_${sortedPair[1]}`;
+            msgObject.to = selectedUser;
+            await push(ref(db, privatePath), msgObject);
+        } else {
+            await push(ref(db, 'messages'), msgObject);
+        }
+        msgInput.value = '';
+    });
+
+    // Admin Panel
+    adminPanelBtn.addEventListener('click', () => {
+        adminPanel.style.display = 'block';
+    });
+
+    closeAdminPanelBtn.addEventListener('click', () => {
+        adminPanel.style.display = 'none';
+    });
+
+    deleteAllPublicBtn.addEventListener('click', async () => {
+        if(confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE wiadomości publiczne? Tej operacji nie można cofnąć!')) {
+            await remove(ref(db, 'messages'));
+            alert('Wszystkie wiadomości publiczne zostały usunięte.');
+            adminPanel.style.display = 'none';
+        }
+    });
+
+    deleteAllPrivateBtn.addEventListener('click', async () => {
+        if(confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE wiadomości prywatne? Tej operacji nie można cofnąć!')) {
+            await remove(ref(db, 'messages_private'));
+            alert('Wszystkie wiadomości prywatne zostały usunięte.');
+            adminPanel.style.display = 'none';
+        }
+    });
 
 </script>
 </body>
