@@ -482,6 +482,18 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    // Nowa funkcja do pobierania adresu IP
+    async function getClientIp() {
+        try {
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = await response.json();
+            return data.ip;
+        } catch (error) {
+            console.error('Błąd podczas pobierania IP:', error);
+            return null;
+        }
+    }
+
     // Pomocnik hashujący SHA-256 (prosty)
     async function hashPassword(pass) {
         const encoder = new TextEncoder();
@@ -531,6 +543,7 @@
     let isBanned = false;
     let lastMessageTimestamp = 0;
     const spamInterval = 2000; // 2 sekundy
+    let clientIp = null;
 
     function formatDate(ts) {
         const d = new Date(ts);
@@ -720,6 +733,19 @@
         authError.textContent = '';
         const nick = nickInput.value.trim();
         const pass = passInput.value;
+        
+        clientIp = await getClientIp();
+        if (!clientIp) {
+            authError.textContent = 'Błąd: Nie można pobrać adresu IP. Spróbuj ponownie.';
+            return;
+        }
+
+        const bannedIpsRef = ref(db, 'banned_ips/' + clientIp.replace(/\./g, '_'));
+        const bannedIpSnap = await get(bannedIpsRef);
+        if (bannedIpSnap.exists()) {
+            authError.textContent = 'Twój adres IP jest zbanowany.';
+            return;
+        }
 
         if(nick.length < 3 || pass.length < 6) {
             authError.textContent = 'Nick musi mieć min. 3 znaki, hasło min. 6 znaków.';
@@ -730,12 +756,28 @@
         const snapshot = await get(userRef);
 
         if(isRegisterMode) {
+            const usersWithSameIpRef = ref(db, 'users');
+            const usersWithSameIpSnapshot = await get(usersWithSameIpRef);
+            let ipCount = 0;
+            if (usersWithSameIpSnapshot.exists()) {
+                usersWithSameIpSnapshot.forEach(userSnap => {
+                    const userData = userSnap.val();
+                    if (userData.ip === clientIp) {
+                        ipCount++;
+                    }
+                });
+            }
+            if (ipCount >= 1) { // Limit 1 konta na IP
+                authError.textContent = 'Możesz mieć tylko jedno konto z tego adresu IP.';
+                return;
+            }
+
             if(snapshot.exists()) {
                 authError.textContent = 'Ten nick jest już zajęty.';
                 return;
             }
             const hashed = await hashPassword(pass);
-            await set(userRef, { passwordHash: hashed, isAdmin: false });
+            await set(userRef, { passwordHash: hashed, isAdmin: false, ip: clientIp });
             currentUser = { nick, isAdmin: false };
             afterLogin();
         } else {
@@ -791,7 +833,7 @@
         if(!currentUser || isMuted) return;
         const now = Date.now();
         if (now - lastMessageTimestamp < spamInterval) {
-            alert('Spam! Poczekaj 2 sekundy przed wysłaniem kolejnej wiadomości.');
+            authError.textContent = 'Spam! Poczekaj 2 sekundy przed wysłaniem kolejnej wiadomości.';
             return;
         }
         let text = msgInput.value.trim();
@@ -862,10 +904,17 @@
             return;
         }
         if (confirm(`Na pewno chcesz zbanować użytkownika ${userToBan}?`)) {
-            const userRef = ref(db, `users/${userToBan}/status`);
-            await update(userRef, { isBanned: true });
+            const userRef = ref(db, `users/${userToBan}`);
+            const userSnap = await get(userRef);
+            if(userSnap.exists()){
+                const userIp = userSnap.val().ip;
+                if(userIp) {
+                    await set(ref(db, 'banned_ips/' + userIp.replace(/\./g, '_')), true);
+                }
+            }
+            await update(ref(db, `users/${userToBan}/status`), { isBanned: true });
             await remove(ref(db, `online/${userToBan}`));
-            alert(`Użytkownik ${userToBan} został zbanowany.`);
+            alert(`Użytkownik ${userToBan} oraz jego adres IP zostały zbanowane.`);
             updateAdminUserList(); 
             adminPanel.style.display = 'none';
         }
@@ -908,8 +957,15 @@
             return;
         }
         if (confirm(`Na pewno chcesz odbanować użytkownika ${userToUnban}?`)) {
-            const userRef = ref(db, `users/${userToUnban}/status`);
-            await update(userRef, { isBanned: false });
+            const userRef = ref(db, `users/${userToUnban}`);
+            const userSnap = await get(userRef);
+            if(userSnap.exists()){
+                const userIp = userSnap.val().ip;
+                if(userIp) {
+                    await remove(ref(db, 'banned_ips/' + userIp.replace(/\./g, '_')));
+                }
+            }
+            await update(ref(db, `users/${userToUnban}/status`), { isBanned: false });
             alert(`Użytkownik ${userToUnban} został odbanowany.`);
             updateAdminUserList(); 
             adminPanel.style.display = 'none';
