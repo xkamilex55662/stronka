@@ -74,7 +74,7 @@ button:hover {filter:brightness(1.1);}
 .chat-title{font-weight:700;font-size:20px;}
 .chat-sub{font-size:14px;color:var(--muted);}
 .messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
-.msg-container{display:flex;align-items:flex-start;gap:10px;}
+.msg-container{display:flex;align-items:flex-start;gap:10px;position:relative;}
 .msg-container.me{flex-direction:row-reverse;}
 .msg-container .avatar{width:32px;height:32px;flex-shrink:0;}
 .msg{
@@ -133,6 +133,29 @@ label{color:var(--muted);font-size:14px;}
 }
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
+}
+
+/* Nowe style dla menu kontekstowego */
+.context-menu {
+    display: none;
+    position: absolute;
+    background: var(--panel);
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    padding: 8px 0;
+    z-index: 100;
+}
+.context-menu-item {
+    padding: 8px 16px;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+}
+.context-menu-item:hover {
+    background: rgba(255,255,255,0.1);
+}
+.context-menu-item.delete {
+    color: #f44336;
 }
 </style>
 </head>
@@ -228,10 +251,13 @@ label{color:var(--muted);font-size:14px;}
         </div>
     </div>
 </div>
+<div id="contextMenu" class="context-menu">
+    <div class="context-menu-item delete" id="deleteMsgItem">Usuń dla wszystkich</div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getDatabase, ref, set, get, onValue, push, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+import { getDatabase, ref, set, get, onValue, push, remove, onDisconnect, update } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
 // ===== FIREBASE CONFIG =====
 const firebaseConfig = {
@@ -283,11 +309,14 @@ const cancelCreateGroupBtn = document.getElementById('cancelCreateGroupBtn');
 const groupsListEl = document.getElementById('groupsList');
 const deleteGroupBtn = document.getElementById('deleteGroupBtn');
 const activeUsersCountEl = document.getElementById('activeUsersCount');
+const contextMenu = document.getElementById('contextMenu');
+const deleteMsgItem = document.getElementById('deleteMsgItem');
 
 let currentUser = null;
 let currentChatId = null;
 let currentChatType = null;
 let myStatus = 'Offline';
+let activeMessageId = null;
 
 // ===== AUTH =====
 showRegBtn.onclick = () => {loginForm.style.display='none'; registerForm.style.display='block';};
@@ -562,6 +591,7 @@ async function openChat(id, type){
     currentChatId = id;
     currentChatType = type;
     deleteGroupBtn.style.display = 'none';
+    contextMenu.style.display = 'none';
 
     if(type === 'dm'){
         chatTitle.textContent = id;
@@ -592,13 +622,26 @@ function loadMessages(){
         messagesEl.innerHTML='';
         snap.forEach(s=>{
             const msg=s.val();
+            const msgId = s.key;
             const isMe = msg.from===currentUser;
-            const avatarHtml = `<div>${msg.from.slice(0,2).toUpperCase()}</div>`;
-            const container=document.createElement('div');container.className=`msg-container ${isMe?'me':''}`;
-            const av=document.createElement('div');av.className='avatar';av.innerHTML=avatarHtml;
-            const div=document.createElement('div');div.className='msg'+(isMe?' me':'');
+            const container=document.createElement('div');
+            container.className=`msg-container ${isMe?'me':''}`;
+            const av=document.createElement('div');av.className='avatar';av.innerHTML=`<div>${msg.from.slice(0,2).toUpperCase()}</div>`;
+            const div=document.createElement('div');
+            div.className='msg'+(isMe?' me':'');
+            div.setAttribute('data-id', msgId);
             
-            let content = `<div class="meta"><span>${msg.from}</span> <span style="margin-left:5px;font-weight: normal; color: var(--muted);">${new Date(msg.timestamp).toLocaleTimeString()}</span></div>`;
+            let content;
+            if (msg.status === 'deleted') {
+                content = `<span class="deleted-msg" style="font-style: italic; color: var(--muted);">Cofnięto wysyłanie wiadomości</span>`;
+                container.appendChild(av);
+                container.appendChild(div);
+                div.innerHTML = content;
+                messagesEl.appendChild(container);
+                return; // Przerwij dalsze renderowanie dla usuniętej wiadomości
+            }
+            
+            content = `<div class="meta"><span>${msg.from}</span> <span style="margin-left:5px;font-weight: normal; color: var(--muted);">${new Date(msg.timestamp).toLocaleTimeString()}</span></div>`;
             
             if (msg.isImage) {
                 content += `<img src="${msg.text}" alt="Image" onclick="window.open(this.src)" />`;
@@ -611,10 +654,48 @@ function loadMessages(){
             div.innerHTML = content;
             container.appendChild(av);container.appendChild(div);
             messagesEl.appendChild(container);
+
+            if(isMe){
+                div.addEventListener('contextmenu', e => {
+                    e.preventDefault();
+                    showContextMenu(e, msgId);
+                });
+            }
         });
         messagesEl.scrollTop = messagesEl.scrollHeight;
     });
 }
+
+function showContextMenu(e, msgId) {
+    contextMenu.style.display = 'block';
+    contextMenu.style.top = `${e.clientY}px`;
+    contextMenu.style.left = `${e.clientX}px`;
+    activeMessageId = msgId;
+}
+
+// Obsługa kliknięcia "Usuń" w menu kontekstowym
+deleteMsgItem.onclick = async () => {
+    if (activeMessageId) {
+        if (confirm("Czy na pewno chcesz usunąć tę wiadomość dla wszystkich?")) {
+            const messagesPath = currentChatType === 'dm' ? 'dms/' + [currentUser, currentChatId].sort().join('_') : 'groupMessages/' + currentChatId;
+            const msgRef = ref(db, `${messagesPath}/${activeMessageId}`);
+            
+            // Zmieniamy status wiadomości na 'deleted'
+            await update(msgRef, { status: 'deleted' });
+
+            contextMenu.style.display = 'none';
+            activeMessageId = null;
+        }
+    }
+};
+
+// Ukrywanie menu kontekstowego przy kliknięciu gdziekolwiek indziej
+document.addEventListener('click', (e) => {
+    if (!contextMenu.contains(e.target) && e.target !== deleteMsgItem) {
+        contextMenu.style.display = 'none';
+        activeMessageId = null;
+    }
+});
 
 sendMsgBtn.onclick = async ()=>{
     if(!currentChatId) return;
@@ -624,7 +705,7 @@ sendMsgBtn.onclick = async ()=>{
     const messagesPath = currentChatType === 'dm' ? 'dms/' + [currentUser, currentChatId].sort().join('_') : 'groupMessages/' + currentChatId;
     const chatRef = ref(db, messagesPath);
     
-    let msgObj = {from:currentUser,timestamp:Date.now(), text: text};
+    let msgObj = {from:currentUser,timestamp:Date.now(), text: text, status: 'active'}; // Dodajemy pole status
     
     const urlPattern = new RegExp(/\.(gif|jpg|jpeg|png)$/i);
     if (urlPattern.test(text)) {
