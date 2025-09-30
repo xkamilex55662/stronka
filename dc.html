@@ -739,198 +739,209 @@
 
         /* === TWÓJ KOD BEZ ZMIAN (do miejsca gdzie kończy się ostatnia sekcja) === */
 
-        /* Responsywność - oryginalna sekcja (zostaje) */
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-                margin: 0;
-                border-radius: 0;
-            }
+/* Responsywność - oryginalna sekcja (zostaje) */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        margin: 0;
+        border-radius: 0;
+    }
 
-            /* Sidebar na górze */
-            .sidebar {
-                order: -1;
-                width: 100%;
-                max-height: none;
-                border: none;
-                border-bottom: 1px solid var(--subtle-border);
-            }
+    /* Sidebar na górze */
+    .sidebar {
+        order: -1;
+        width: 100%;
+        max-height: none;
+        border: none;
+        border-bottom: 1px solid var(--subtle-border);
+    }
 
-            /* Ukrywamy panel członków */
-            .members-panel {
-                display: none;
-            }
+    /* Ukrywamy panel członków */
+    .members-panel {
+        display: none;
+    }
 
-            .main {
-                flex: 1;
-                width: 100%;
-                min-height: 60vh;
-            }
+    .main {
+        flex: 1;
+        width: 100%;
+        min-height: 60vh;
+    }
 
-            .chat-header {
-                position: sticky;
-                top: 0;
-                background: var(--bg);
-                z-index: 10;
-            }
+    .chat-header {
+        position: sticky;
+        top: 0;
+        background: var(--bg);
+        z-index: 10;
+    }
 
-            /* Wiadomości – większa szerokość */
-            .msg {
-                max-width: 90%;
-            }
+    /* Wiadomości – większa szerokość */
+    .msg {
+        max-width: 90%;
+    }
 
-            /* Composer – lepsze rozmieszczenie */
-            .composer {
-                flex-direction: row;
-                gap: 6px;
-            }
+    /* Composer – lepsze rozmieszczenie */
+    .composer {
+        flex-direction: row;
+        gap: 6px;
+    }
 
-            .composer input[type=text] {
-                font-size: 16px;
-            }
-        }
+    .composer input[type=text] {
+        font-size: 16px;
+    }
+}
 
-        /* Bardzo małe ekrany (np. starsze telefony) */
-        @media (max-width: 480px) {
-            /* Modal profilu dopasowany do ekranu */
-            .profile-modal {
-                width: 90%;
-                padding: 16px;
-            }
+/* Bardzo małe ekrany (np. starsze telefony) */
+@media (max-width: 480px) {
+    /* Modal profilu dopasowany do ekranu */
+    .profile-modal {
+        width: 90%;
+        padding: 16px;
+    }
 
-            /* Karta logowania/rejestracji */
-            .auth-card {
-                width: 90%;
-                padding: 20px;
-            }
+    /* Karta logowania/rejestracji */
+    .auth-card {
+        width: 90%;
+        padding: 20px;
+    }
 
-            /* Tytuły i teksty trochę mniejsze */
-            .chat-title {
-                font-size: 18px;
-            }
+    /* Tytuły i teksty trochę mniejsze */
+    .chat-title {
+        font-size: 18px;
+    }
 
-            .chat-sub {
-                font-size: 13px;
-            }
-        }
+    .chat-sub {
+        font-size: 13px;
+    }
+}
 
-        /* ======== DODATKOWE REGUŁY MOBILNE (nadpisujące i poprawiające UX na tel) ======== */
+/* ======== DODATKOWE REGUŁY MOBILNE (nadpisujące i poprawiające UX na tel) ======== */
 
-        /* ustawiamy mobile buttony ukryte domyślnie - pokażą się w @media */
-        .mobile-btn { display: none; }
+/* ustawiamy mobile buttony ukryte domyślnie - pokażą się w @media */
+.mobile-btn { display: none; }
 
-        @media (max-width: 768px) {
-            /* lepsze przewijanie na touch */
-            .friends-list, .groups-list, .messages, .sidebar, .members-panel, .requests-list {
-                -webkit-overflow-scrolling: touch;
-                touch-action: pan-y;
-                overflow-y: auto;
-                -ms-overflow-style: auto;
-            }
+@media (max-width: 768px) {
+    /* lepsze przewijanie na touch */
+    .friends-list, .groups-list, .messages, .sidebar, .members-panel, .requests-list {
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        overflow-y: auto;
+        -ms-overflow-style: auto;
+    }
 
-            /* Sidebar wysuwany z lewej (domyślnie ukryty) */
-            .sidebar {
-                position: fixed;
-                top: 0;
-                left: -100%;
-                height: 100%;
-                width: 80%;
-                max-width: 340px;
-                background: var(--panel);
-                z-index: 1300;
-                overflow-y: auto;
-                border-right: none;
-                border-left: none;
-                border-bottom: none;
-                box-shadow: 2px 0 20px rgba(0,0,0,0.6);
-                transition: left 0.28s ease;
-            }
-            .sidebar.active {
-                left: 0;
-            }
+    /* Sidebar wysuwany z lewej (domyślnie ukryty) */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        height: 100%;
+        width: 80%;
+        max-width: 340px;
+        background: var(--panel);
+        z-index: 1300;
+        overflow-y: auto;
+        border-right: none;
+        border-left: none;
+        border-bottom: none;
+        box-shadow: 2px 0 20px rgba(0,0,0,0.6);
+        transition: left 0.28s ease;
+    }
+    .sidebar.active {
+        left: 0;
+    }
 
-            /* Members panel wysuwany z prawej */
-            .members-panel {
-                position: fixed;
-                top: 0;
-                right: -100%;
-                height: 100%;
-                width: 80%;
-                max-width: 340px;
-                background: var(--panel);
-                z-index: 1300;
-                overflow-y: auto;
-                box-shadow: -2px 0 20px rgba(0,0,0,0.6);
-                transition: right 0.28s ease;
-            }
-            .members-panel.active {
-                right: 0;
-                display: flex;
-            }
+    /* Members panel wysuwany z prawej */
+    .members-panel {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        height: 100%;
+        width: 80%;
+        max-width: 340px;
+        background: var(--panel);
+        z-index: 1300;
+        overflow-y: auto;
+        box-shadow: -2px 0 20px rgba(0,0,0,0.6);
+        transition: right 0.28s ease;
+    }
+    .members-panel.active {
+        right: 0;
+        display: flex;
+    }
 
-            /* backdrop za wysuwanymi panelami */
-            .sidebar-backdrop {
-                position: fixed;
-                inset: 0;
-                background: rgba(0,0,0,0.45);
-                z-index: 1250;
-                display: none;
-            }
-            .sidebar-backdrop.visible { display: block; }
+    /* backdrop za wysuwanymi panelami */
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 1250;
+        display: none;
+    }
+    .sidebar-backdrop.visible { display: block; }
 
-            /* pokaż przyciski mobilne */
-            .mobile-btn {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                margin-right: 8px;
-                background: none;
-                border: none;
-                font-size: 22px;
-                color: var(--muted);
-                padding: 6px;
-                border-radius: 8px;
-            }
-            .mobile-btn:active, .mobile-btn:focus { outline: none; background: rgba(255,255,255,0.03); }
+    /* pokaż przyciski mobilne */
+    .mobile-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 8px;
+        background: none;
+        border: none;
+        font-size: 22px;
+        color: var(--muted);
+        padding: 6px;
+        border-radius: 8px;
+    }
+    .mobile-btn:active, .mobile-btn:focus {
+        outline: none;
+        background: rgba(255,255,255,0.03);
+    }
 
-            /* main zajmuje cały ekran */
-            .container {
-                margin: 0;
-                border-radius: 0;
-                height: 100vh;
-            }
-            .main {
-                width: 100%;
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-            }
+    /* main zajmuje cały ekran */
+    .container {
+        margin: 0;
+        border-radius: 0;
+        height: 100vh;
+    }
+    .main {
+        width: 100%;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
 
-            .chat-header {
-                padding: 12px 16px;
-            }
+    .chat-header {
+        padding: 12px 16px;
+    }
 
-            .composer {
-                position: sticky;
-                bottom: 0;
-                background: var(--bg);
-                padding: 8px;
-                z-index: 20;
-            }
+    /* Composer poprawiony */
+    .composer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg);
+        padding: 8px calc(8px + env(safe-area-inset-bottom));
+        z-index: 2000;
+    }
 
-            .msg {
-                max-width: 92%;
-            }
+    /* Zapas miejsca pod composerem */
+    .messages {
+        padding-bottom: 90px;
+    }
 
-            /* mniejsze pady w sidebar, żeby zmieścić więcej */
-            .profile, .requests-toggle, .group-creator {
-                padding: 8px;
-            }
+    .msg {
+        max-width: 92%;
+    }
 
-            .friends-list, .groups-list {
-                gap: 8px;
-            }
-        }
+    /* mniejsze pady w sidebar, żeby zmieścić więcej */
+    .profile, .requests-toggle, .group-creator {
+        padding: 8px;
+    }
+
+    .friends-list, .groups-list {
+        gap: 8px;
+    }
+}
 
     </style>
 </head>
@@ -1949,9 +1960,6 @@
             }
         });
 
-        // Zapewnienie, że scroll w wewnętrznych panelach działa poprawnie na mobile
-        // (nic agresywnego — tylko poprawki stylistyczne z CSS powyżej)
-        // Jeśli chcesz dodać gesty swipe-to-close, możemy to dorobić później.
 
     </script>
 </body>
