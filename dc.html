@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -735,33 +736,82 @@
             margin-left: 8px;
         }
 
-        /* Responsywność */
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-                margin: 0;
-                border-radius: 0;
-            }
-            .sidebar, .members-panel {
-                width: 100%;
-                height: auto;
-                max-height: 40vh;
-                border-right: none;
-                border-left: none;
-                border-bottom: 1px solid var(--subtle-border);
-            }
-            .main {
-                flex: 1;
-                width: 100%;
-                min-height: 50vh;
-            }
-            .chat-header {
-                position: sticky;
-                top: 0;
-                background: var(--bg);
-                z-index: 10;
-            }
-        }
+        /* === TWÓJ KOD BEZ ZMIAN (do miejsca gdzie kończy się ostatnia sekcja) === */
+
+/* Responsywność */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        margin: 0;
+        border-radius: 0;
+    }
+
+    /* Sidebar na górze */
+    .sidebar {
+        order: -1;
+        width: 100%;
+        max-height: none;
+        border: none;
+        border-bottom: 1px solid var(--subtle-border);
+    }
+
+    /* Ukrywamy panel członków */
+    .members-panel {
+        display: none;
+    }
+
+    .main {
+        flex: 1;
+        width: 100%;
+        min-height: 60vh;
+    }
+
+    .chat-header {
+        position: sticky;
+        top: 0;
+        background: var(--bg);
+        z-index: 10;
+    }
+
+    /* Wiadomości – większa szerokość */
+    .msg {
+        max-width: 90%;
+    }
+
+    /* Composer – lepsze rozmieszczenie */
+    .composer {
+        flex-direction: row;
+        gap: 6px;
+    }
+
+    .composer input[type=text] {
+        font-size: 16px;
+    }
+}
+
+/* Bardzo małe ekrany (np. starsze telefony) */
+@media (max-width: 480px) {
+    /* Modal profilu dopasowany do ekranu */
+    .profile-modal {
+        width: 90%;
+        padding: 16px;
+    }
+
+    /* Karta logowania/rejestracji */
+    .auth-card {
+        width: 90%;
+        padding: 20px;
+    }
+
+    /* Tytuły i teksty trochę mniejsze */
+    .chat-title {
+        font-size: 18px;
+    }
+
+    .chat-sub {
+        font-size: 13px;
+    }
+}
     </style>
 </head>
 <body>
