@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Czatbot GPT Lokalny</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding-top: 20px; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        #chat-window { height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 6px; text-align: left; background-color: #f9f9f9; }
+        .message { padding: 10px 15px; margin-bottom: 10px; border-radius: 18px; max-width: 80%; line-height: 1.4; }
+        .user-message { background-color: #007bff; color: white; margin-left: auto; text-align: right; border-bottom-right-radius: 4px; }
+        .bot-message { background-color: #e9ecef; color: #333; margin-right: auto; text-align: left; border-bottom-left-radius: 4px; }
+        .bot-message.thinking { font-style: italic; color: #6c757d; }
+        #input-area { display: flex; gap: 10px; }
+        #user-input { flex-grow: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
+        #send-button { padding: 12px 20px; background-color: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; transition: background-color 0.2s; }
+        #send-button:hover { background-color: #218838; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Porozmawiaj z Botem GPT Offline</h1>
+    <p>‼️ Bot ma ta same odpowiedzi ‼️</p>
+    <div id="chat-window">
+        <div class="message bot-message">Cześć! Jestem Twoim lokalnym asystentem AI. Zapraszam do rozmowy!</div>
+    </div>
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="Wpisz swoją wiadomość..." autocomplete="off">
+        <button id="send-button">Wyślij</button>
+    </div>
+</div>
+
+<script>
+    const chatWindow = document.getElementById('chat-window');
+    const userInput = document.getElementById('user-input');
+    const sendButton = document.getElementById('send-button');
+
+    // Prosty lokalny bot z regułami
+    function getBotReply(text) {
+        const msg = text.toLowerCase();
+        if(msg.includes('hej') || msg.includes('cześć')) return 'Hej! Jak się masz?';
+        if(msg.includes('jak się masz')) return 'Dobrze, dzięki! A Ty?';
+        if(msg.includes('co robisz')) return 'Rozmawiam z Tobą :)';
+        if(msg.includes('pogoda')) return 'Nie wiem, ale mam nadzieję, że u Ciebie świeci słońce!';
+        if(msg.includes('dzięki') || msg.includes('dziękuję')) return 'Nie ma sprawy!';
+        if(msg.includes('pa') || msg.includes('do widzenia')) return 'Do zobaczenia!';
+        const defaultReplies = [
+            'Hmm, powiedz coś więcej.',
+            'Ciekawe, opowiedz mi o tym.',
+            'Nie jestem pewien, spróbuj inaczej sformułować pytanie.',
+            'Fascynujące! A co o tym myślisz?'
+        ];
+        return defaultReplies[Math.floor(Math.random() * defaultReplies.length)];
+    }
+
+    function appendMessage(text, className) {
+        const div = document.createElement('div');
+        div.className = 'message ' + className;
+        div.textContent = text;
+        chatWindow.appendChild(div);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        return div;
+    }
+
+    function sendMessage() {
+        const text = userInput.value.trim();
+        if(!text) return;
+        appendMessage(text, 'user-message');
+        userInput.value = '';
+
+        const thinking = appendMessage('...', 'bot-message thinking');
+        setTimeout(() => {
+            thinking.textContent = getBotReply(text);
+            thinking.classList.remove('thinking');
+        }, 300);
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+    userInput.addEventListener('keydown', function(e) {
+        if(e.key === 'Enter') sendMessage();
+    });
+</script>
+
+</body>
+</html>
