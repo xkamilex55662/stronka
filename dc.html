@@ -735,33 +735,114 @@
             margin-left: 8px;
         }
 
-        /* Responsywność */
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-                margin: 0;
-                border-radius: 0;
-            }
-            .sidebar, .members-panel {
-                width: 100%;
-                height: auto;
-                max-height: 40vh;
-                border-right: none;
-                border-left: none;
-                border-bottom: 1px solid var(--subtle-border);
-            }
-            .main {
-                flex: 1;
-                width: 100%;
-                min-height: 50vh;
-            }
-            .chat-header {
-                position: sticky;
-                top: 0;
-                background: var(--bg);
-                z-index: 10;
-            }
-        }
+        /* === TWÓJ KOD BEZ ZMIAN (do miejsca gdzie kończy się ostatnia sekcja) === */
+
+/* Responsywność */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        margin: 0;
+        border-radius: 0;
+    }
+
+    /* Sidebar na górze */
+    .sidebar {
+        order: -1;
+        width: 100%;
+        max-height: none;
+        border: none;
+        border-bottom: 1px solid var(--subtle-border);
+    }
+
+    /* Ukrywamy panel członków */
+    .members-panel {
+        display: none;
+    }
+
+    .main {
+        flex: 1;
+        width: 100%;
+        min-height: 60vh;
+    }
+
+    .chat-header {
+        position: sticky;
+        top: 0;
+        background: var(--bg);
+        z-index: 10;
+    }
+
+    /* Wiadomości – większa szerokość */
+    .msg {
+        max-width: 90%;
+    }
+
+    /* Composer – lepsze rozmieszczenie */
+    .composer {
+        flex-direction: row;
+        gap: 6px;
+    }
+
+    .composer input[type=text] {
+        font-size: 16px;
+    }
+}
+
+/* Bardzo małe ekrany (np. starsze telefony) */
+@media (max-width: 480px) {
+    /* Modal profilu dopasowany do ekranu */
+    .profile-modal {
+        width: 90%;
+        padding: 16px;
+    }
+
+    /* Karta logowania/rejestracji */
+    .auth-card {
+        width: 90%;
+        padding: 20px;
+    }
+
+    /* Tytuły i teksty trochę mniejsze */
+    .chat-title {
+        font-size: 18px;
+    }
+
+    .chat-sub {
+        font-size: 13px;
+    }
+}
+
+/* ====== MOBILE LAYOUT ====== */
+@media (max-width: 768px) {
+  .sidebar, .members-panel {
+    display: none;
+    position: fixed;
+    top: 0; bottom: 0;
+    width: 80%;
+    max-width: 300px;
+    background: var(--bg);
+    z-index: 1000;
+    flex-direction: column;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+  }
+
+  .sidebar.active { display: flex; left: 0; }
+  .members-panel.active { display: flex; right: 0; }
+
+  .mobile-btn {
+    display: inline-block;
+    background: none;
+    border: none;
+    font-size: 20px;
+    margin: 0 5px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+
+  .container {
+    grid-template-columns: 1fr; /* tylko chat */
+  }
+}
     </style>
 </head>
 <body>
@@ -817,13 +898,15 @@
 
         <div class="main">
             <div class="chat-header">
-                <div class="avatar" id="chatAvatar">?</div>
-                <div>
-                    <div class="chat-title" id="chatTitle">Wybierz znajomego</div>
-                    <div class="chat-sub" id="chatSub">Prywatna rozmowa</div>
-                </div>
-                <button id="deleteGroupBtn" class="delete-group-btn" style="display:none;">Usuń grupę</button>
-            </div>
+    <button id="toggleSidebar" class="mobile-btn">☰</button>
+    <div class="avatar" id="chatAvatar">?</div>
+    <div>
+        <div class="chat-title" id="chatTitle">Wybierz znajomego</div>
+        <div class="chat-sub" id="chatSub">Prywatna rozmowa</div>
+    </div>
+    <button id="toggleMembers" class="mobile-btn">👥</button>
+    <button id="deleteGroupBtn" class="delete-group-btn" style="display:none;">Usuń grupę</button>
+</div>
             <div class="messages" id="messages"></div>
             <div class="composer">
                 <input type="text" id="msgInput" placeholder="Napisz wiadomość... lub wklej link do obrazka/GIF-a" autocomplete="off" />
@@ -1682,6 +1765,31 @@
         } else {
             authModal.style.display = 'flex';
         }
+
+        // ===== MOBILE TOGGLE =====
+const toggleSidebarBtn = document.getElementById('toggleSidebar');
+const toggleMembersBtn = document.getElementById('toggleMembers');
+
+toggleSidebarBtn.onclick = () => {
+    document.querySelector('.sidebar').classList.toggle('active');
+};
+
+toggleMembersBtn.onclick = () => {
+    document.querySelector('.members-panel').classList.toggle('active');
+};
+
+// Zamykaj panele po kliknięciu poza nimi
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.sidebar') && !e.target.closest('#toggleSidebar')) {
+        document.querySelector('.sidebar').classList.remove('active');
+    }
+    if (!e.target.closest('.members-panel') && !e.target.closest('#toggleMembers')) {
+        document.querySelector('.members-panel').classList.remove('active');
+    }
+});
+
     </script>
 </body>
 </html>
+
+
